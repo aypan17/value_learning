@@ -1,0 +1,24 @@
+{
+    "os": "Linux-4.19.128-microsoft-standard-x86_64-with-debian-bullseye-sid",
+    "python": "3.7.3",
+    "heartbeatAt": "2021-06-17T18:06:36.423731",
+    "startedAt": "2021-06-17T18:06:34.048732",
+    "docker": null,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [
+        "s"
+    ],
+    "state": "running",
+    "program": "test.py",
+    "codePath": "test.py",
+    "git": {
+        "remote": "https://github.com/aypan17/value_learning.git",
+        "commit": "aff32cd349ab139e3f45671da30f9526919eb979"
+    },
+    "email": "aypan.17@gmail.com",
+    "root": "/home/aypan/value_learning",
+    "host": "LAPTOP-ALEX",
+    "username": "aypan",
+    "executable": "/home/aypan/anaconda3/envs/flow/bin/python3"
+}

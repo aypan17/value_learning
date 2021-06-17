@@ -5,7 +5,10 @@ from flow.controllers import IDMController, ContinuousRouter, RLController
 from flow.envs import WaveAttenuationPOEnv
 
 import json
+import sys
 import numpy as np
+
+import wandb
 
 import ray
 try:
@@ -79,9 +82,9 @@ def on_postprocess_traj(info):
     #batch = info["post_batch"]  # note: you can mutate this
     #print("postprocessed {} steps".format(batch.count))
 
+def train():
+    config = wandb.config
 
-
-def main():
     name = "misspecified_0.4"
     network_name = RingNetwork
     net_params = NetParams(additional_params=ADDITIONAL_NET_PARAMS)
@@ -149,6 +152,7 @@ def main():
     alg_run = "PPO"
 
     agent_cls = get_agent_class(alg_run)
+    print(config)
     config = agent_cls._default_config.copy()
     config["num_workers"] = N_CPUS - 1  # number of parallel workers
     config["train_batch_size"] = HORIZON * N_ROLLOUTS  # batch size
@@ -183,7 +187,6 @@ def main():
     # Register as rllib env with Gym
     register_env(gym_name, create_env)
 
-
     trials = run_experiments({
         flow_params["exp_tag"]: {
             "run": alg_run,
@@ -195,11 +198,66 @@ def main():
             "checkpoint_at_end": True,  # generate a checkpoint at the end
             "max_failures": 999,
             "stop": {  # stopping conditions
-                "training_iteration": 250,  # number of iterations to stop after
+                "training_iteration": 2,  # number of iterations to stop after
             },
         },
         
     })
+
+
+
+def main():
+    os.environ["WANDB_SILENT"] = "true"
+    
+    if sys.argv[1] == 'sweep':
+        sweep_config = {
+            'method': 'random', #grid, random
+            'metric': {
+              'name': 'loss',
+              'goal': 'minimize'   
+            },
+            'parameters': {
+                'epochs': {
+                    'values': [2, 5, 10]
+                },
+                'batch_size': {
+                    'values': [256, 128, 64, 32]
+                },
+                'dropout': {
+                    'values': [0.3, 0.4, 0.5]
+                },
+                'learning_rate': {
+                    'values': [1e-2, 1e-3, 1e-4, 3e-4, 3e-5, 1e-5]
+                },
+                'fc_layer_size':{
+                    'values':[128,256,512]
+                },
+                'optimizer': {
+                    'values': ['adam', 'sgd']
+                },
+            }
+        }
+
+        sweep_id = wandb.sweep(sweep_config, entity="aypan17", project="value-learning", sync_tensorboard=True)
+        wandb.agent(sweep_id, train)
+    else:
+        config_defaults = {
+            'epochs': 5,
+            'batch_size': 128,
+            'learning_rate': 1e-3,
+            'optimizer': 'adam',
+            'fc_layer_size': 128,
+            'dropout': 0.5,
+        }
+
+        wandb.init(
+          project="value-learning",
+          entity="aypan17",
+          config=config_defaults,
+          sync_tensorboard=True
+        )
+        print("hi")
+        train()
 
 if __name__ == '__main__':
     main()
