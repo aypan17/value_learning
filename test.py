@@ -7,6 +7,7 @@ from flow.envs import WaveAttenuationPOEnv
 import json
 import sys
 import numpy as np
+import os
 
 import wandb
 
@@ -29,16 +30,10 @@ from ray.tune.logger import DEFAULT_LOGGERS
 # Custom state can be stored for the episode in the info["episode"].user_data dict
 # Custom scalar metrics reported by saving values to the info["episode"].custom_metrics dict
 def on_episode_start(info):
-    #print(info.keys())  # -> "env", 'episode", 'policy'
     episode = info["episode"]
-    #env = info["env"]
-    #print(episode.last)
-    #print(info['env'])
-    #print("episode {} started".format(episode.episode_id))
     episode.user_data["true_reward"] = []
 
 def on_episode_step(info):
-
     episode = info["episode"]
     env = info["env"]
 
@@ -62,25 +57,16 @@ def on_episode_step(info):
     episode.user_data["true_reward"].append(true_reward)
 
 def on_episode_end(info):
-    
+    print("hi")
     episode = info["episode"]
     mean_rew = np.mean(episode.user_data["true_reward"])
-    #print("episode {} ended with length {} and pole angles {}".format(
-    #    episode.episode_id, episode.length, pole_angle))
     episode.custom_metrics["true_reward"] = mean_rew
 
 def on_train_result(info):
     pass
-    #print(info.keys())
-    #pass
-    #print("trainer.train() result: {} -> {} episodes".format(
-    #    info["trainer"].__name__, info["result"]["episodes_this_iter"]))
 
 def on_postprocess_traj(info):
     pass
-    #episode = info["episode"]
-    #batch = info["post_batch"]  # note: you can mutate this
-    #print("postprocessed {} steps".format(batch.count))
 
 def train():
     config = wandb.config
