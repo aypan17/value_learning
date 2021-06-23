@@ -1,7 +1,7 @@
 # Code for Value Learning Experiments
 
 ## Requirements
-- python >= 3.6
+- python == 3.7
 - flow: https://github.com/flow-project/flow
 - SUMO: https://github.com/eclipse/sumo
 

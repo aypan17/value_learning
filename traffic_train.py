@@ -52,7 +52,6 @@ def on_episode_step(info):
     episode.user_data["true_reward"].append(true_reward)
 
 def on_episode_end(info):
-    print("hi")
     episode = info["episode"]
     mean_rew = np.mean(episode.user_data["true_reward"])
     episode.custom_metrics["true_reward"] = mean_rew
@@ -107,7 +106,7 @@ def parse_args(args):
     parser.add_argument('-g', '--goal', type=str, default='maximize')
     parser.add_argument('-n', '--name', type=str, default='untitled')
     parser.add_argument('-gpu', '--gpuid', type=int, default=0)
-    parser.add_argument('--sweep', type=bool, default=False)
+    parser.add_argument('--sweep', action='store_true', help='run hparam sweep')
     parser.add_argument('--replicas', type=bool, default=False, 
         help='number of different hparam settings to try')
 
@@ -208,6 +207,7 @@ def setup_exps_rllib(flow_params,
 
     config["num_workers"] = n_cpus - 1
     config["train_batch_size"] = horizon * n_rollouts
+    config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
     config["gamma"] = 0.999  # discount rate
     config["model"].update({"fcnet_hiddens": [16, 16]})
     config["use_gae"] = True
@@ -416,9 +416,10 @@ def main(args):
             "'python train.py EXP_CONFIG'"
 
     if flags.sweep:
-        config = flags.__dict__.update(SWEEP_CONFIG)
+        flags.__dict__.update(SWEEP_CONFIG)
+        config = flags.__dict__
         sweep_id = wandb.sweep(config, entity="aypan17", project="value-learning")
-        wandb.agent(sweep_id, train, count=args.replicas)
+        wandb.agent(sweep_id, train, count=flags.replicas)
 
     else:
         flags.__dict__.update(DEFAULT_CONFIG)
