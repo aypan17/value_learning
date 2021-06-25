@@ -209,7 +209,7 @@ def setup_exps_rllib(flow_params,
     config["train_batch_size"] = horizon * n_rollouts
     config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
     config["gamma"] = 0.999  # discount rate
-    config["model"].update({"fcnet_hiddens": [16, 16]})
+    config["model"].update({"fcnet_hiddens": [32, 32, 32]})
     config["use_gae"] = True
     config["lambda"] = 0.97
     config["kl_target"] = 0.02
@@ -251,7 +251,7 @@ def train_rllib(submodule, flags):
     from ray.tune import run_experiments
 
     flow_params = submodule.flow_params
-    n_cpus = submodule.N_CPUS
+    n_cpus = sys.argv[2]
     n_rollouts = submodule.N_ROLLOUTS
     policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
     policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
@@ -261,7 +261,7 @@ def train_rllib(submodule, flags):
         flow_params, n_cpus, n_rollouts,
         policy_graphs, policy_mapping_fn, policies_to_train)
 
-    ray.init(num_cpus=n_cpus)
+    ray.init(address=os.envion["ip_head"], num_cpus=n_cpus)
     print(flags.num_steps)
     exp_config = {
         "run": alg_run,
@@ -269,7 +269,7 @@ def train_rllib(submodule, flags):
         "config": {
             **config
         },
-        "checkpoint_freq": 1,
+        "checkpoint_freq": 20,
         "checkpoint_at_end": True,
         "max_failures": 999,
         "stop": {
@@ -490,4 +490,4 @@ DEFAULT_CONFIG = {
         }
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(sys.argv[1])

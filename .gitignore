@@ -152,3 +152,6 @@ Thumbs.db
 # Log files
 wandb/
 /wandb
+
+# SLURM
+slurm*
