@@ -10,9 +10,9 @@ from flow.envs import WaveAttenuationPOEnv
 from flow.networks import RingNetwork
 
 # time horizon of a single rollout
-HORIZON = 100
+HORIZON = 400
 # number of rollouts per training iteration
-N_ROLLOUTS = 1
+N_ROLLOUTS = 20
 # number of parallel workers
 N_CPUS = 2
 
@@ -49,7 +49,7 @@ flow_params = dict(
 
     # sumo-related parameters (see flow.core.params.SumoParams)
     sim=SumoParams(
-        sim_step=0.1,
+        sim_step=0.2,
         render=False,
         restart_instance=False
     ),

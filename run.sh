@@ -1,13 +1,12 @@
 #!/bin/bash
 # shellcheck disable=SC2206
-#SBATCH --job-name=test
-#SBATCH --cpus-per-task=12
-#SBATCH --mem-per-cpu=4GB
+#SBATCH --job-name=horizon3000
+#SBATCH --cpus-per-task=10
+# #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
-#SBATCH --time=00:30:00
 #SBATCH --gres gpu:0
-#SBATCH -p 'high'
+#SBATCH -p 'low'
 
 set -x
 
@@ -68,6 +67,16 @@ done
 # __doc_script_start__
 ENV_NAME=$1
 MODE=$2
-EXP_NAME=$3
+EXP=$3
+NAME=$4
+ETA=$5 
+MULTI=$6
 
-python3 -u ${ENV_NAME}_${MODE}.py ${EXP_NAME} "$SLURM_CPUS_PER_TASK"
+if [ "${MULTI}" = "0" ]; then
+	python3 -u ${ENV_NAME}_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK"
+elif [ "${MULTI}" = "1" ]; then
+	python3 -u ${ENV_NAME}_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --multi
+else
+	echo "Must select either '0' for single agent or '1' for multi agent config, not ${MULTI}"
+	exit 0
+fi 

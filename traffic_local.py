@@ -13,6 +13,7 @@ import sys
 from time import strftime
 from copy import deepcopy
 
+from flow.core import rewards
 from flow.core.util import ensure_dir
 from flow.utils.registry import env_constructor
 from flow.utils.rllib import FlowParamsEncoder, get_flow_params
@@ -26,35 +27,25 @@ import wandb
 # Custom scalar metrics reported by saving values to the info["episode"].custom_metrics dict
 def on_episode_start(info):
 	episode = info["episode"]
-	episode.user_data["true_reward"] = []
+	episode.user_data["global_reward"] = []
 
 def on_episode_step(info):
 	episode = info["episode"]
 	env = info["env"]
 
-	kernel = env.vector_env.envs[0].k
+	kernel = env.envs[0].k
 	vel = np.array([
 			kernel.vehicle.get_speed(veh_id)
 			for veh_id in kernel.vehicle.get_ids()
 		])
 
 	# reward average velocity
-	eta_2 = 4.
-	true_reward = eta_2 * np.mean(vel) / 20
-
-	# punish accelerations (should lead to reduced stop-and-go waves)
-	eta = 4  # 0.25
-	mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
-	accel_threshold = 0
-
-	if mean_actions > accel_threshold:
-		true_reward += eta * (accel_threshold - mean_actions)
-	episode.user_data["true_reward"].append(true_reward)
+	episode.user_data["global_reward"].append(np.mean(vel))
 
 def on_episode_end(info):
 	episode = info["episode"]
-	mean_rew = np.sum(episode.user_data["true_reward"])
-	episode.custom_metrics["true_reward"] = mean_rew
+	mean_rew = np.sum(episode.user_data["global_reward"])
+	episode.custom_metrics["global_reward"] = mean_rew
 
 def on_train_result(info):
 	pass
@@ -199,7 +190,7 @@ def setup_exps_rllib(flow_params,
 		from ray.rllib.agents.registry import get_agent_class
 
 	horizon = flow_params['env'].horizon
-	print(f"Horizon: {horizon}")
+
 	alg_run = "PPO"
 
 	agent_cls = get_agent_class(alg_run)
@@ -216,7 +207,7 @@ def setup_exps_rllib(flow_params,
 	config["vf_clip_param"] = 10000
 	config["num_sgd_iter"] = 10
 	config["horizon"] = horizon
-
+	print(f"Horizon: {horizon}")
 	# save the flow params for replay
 	flow_json = json.dumps(
 		flow_params, cls=FlowParamsEncoder, sort_keys=True, indent=4)
@@ -253,7 +244,7 @@ def train_rllib(submodule, flags):
 
 	flow_params = submodule.flow_params
 	flow_params["exp_tag"] = sys.argv[2]
-	flow_params["env"].additional_params["eta"] = float(sys.argv[3])
+	flow_params["env"].additional_params["local"] = str(sys.argv[3])
 	n_cpus = int(sys.argv[4])
 	n_rollouts = submodule.N_ROLLOUTS
 	policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
@@ -272,7 +263,7 @@ def train_rllib(submodule, flags):
 		"config": {
 			**config
 		},
-		"checkpoint_freq": 100,
+		"checkpoint_freq": 20,
 		"checkpoint_at_end": True,
 		"max_failures": 999,
 		"stop": {

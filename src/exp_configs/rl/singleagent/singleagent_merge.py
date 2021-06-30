@@ -25,7 +25,7 @@ N_ROLLOUTS = 20
 N_CPUS = 2
 
 # inflow rate at the highway
-FLOW_RATE = 2000
+FLOW_RATE = 1000
 # percent of autonomous vehicles
 RL_PENETRATION = [0.1, 0.25, 0.33][EXP_NUM]
 # num_rl term (see ADDITIONAL_ENV_PARAMs)
@@ -42,9 +42,7 @@ additional_net_params["pre_merge_length"] = 500
 vehicles = VehicleParams()
 vehicles.add(
     veh_id="human",
-    acceleration_controller=(IDMController, {
-        "noise": 0.2
-    }),
+    acceleration_controller=(IDMController, {"noise": 0.2}),
     car_following_params=SumoCarFollowingParams(
         speed_mode="obey_safe_speed",
     ),
