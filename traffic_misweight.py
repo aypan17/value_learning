@@ -96,8 +96,14 @@ def parse_args(args):
 		'--num_steps', type=int, default=5000,
 		help='How many total steps to perform learning over')
 	parser.add_argument(
-		'--rollout_size', type=int, default=1000,
+		'--rollout_size', type=int, default=20,
 		help='How many steps are in a training batch.')
+	parser.add_argument(
+		'--horizon', type=int, default=400,
+		help='Number of steps in each episode.')
+	parser.add_argument(
+		'--checkpoint', type=int, default=50,
+		help='How frequently to checkpoint model.')
 	parser.add_argument(
 		'--checkpoint_path', type=str, default=None,
 		help='Directory with checkpoint to restore training from.')
@@ -254,8 +260,9 @@ def train_rllib(submodule, flags):
 	flow_params = submodule.flow_params
 	flow_params["exp_tag"] = sys.argv[2]
 	flow_params["env"].additional_params["eta"] = float(sys.argv[3])
+	flow_params["env"].horizon = flags.horizon
 	n_cpus = int(sys.argv[4])
-	n_rollouts = submodule.N_ROLLOUTS
+	n_rollouts = flags.rollout_size
 	policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
 	policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
 	policies_to_train = getattr(submodule, "policies_to_train", None)
@@ -272,7 +279,7 @@ def train_rllib(submodule, flags):
 		"config": {
 			**config
 		},
-		"checkpoint_freq": 100,
+		"checkpoint_freq": flags.checkpoint,
 		"checkpoint_at_end": True,
 		"max_failures": 999,
 		"stop": {

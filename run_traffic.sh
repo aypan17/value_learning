@@ -1,17 +1,17 @@
 #!/bin/bash
 # shellcheck disable=SC2206
-#SBATCH --job-name=horizon3000
+#SBATCH --job-name=merge
 #SBATCH --cpus-per-task=10
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
-#SBATCH -p 'low'
+#SBATCH -p 'high_pre'
 
 set -x
 
 # simulate conda activate flow
-export PATH=/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/envs/flow/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/condabin:/usr/local/linux/anaconda3.8/bin:/accounts/projects/jsteinhardt/aypan/bin:/bin:/usr/local/linux/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin:/usr/sbin:/snap/bin:/usr/lib/rstudio-server/bin
+export PATH=/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/envs/flow/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/condabin:/usr/local/linux/anaconda3.8/bin:/accounts/projects/jsteinhardt/aypan/bin:/accounts/projects/jsteinhardt/aypan/value_learning/bin:/bin:/usr/local/linux/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin:/usr/sbin:/snap/bin:/usr/lib/rstudio-server/bin
 
 # __doc_head_address_start__
 
@@ -65,18 +65,26 @@ done
 # __doc_worker_ray_end__
 
 # __doc_script_start__
-ENV_NAME=$1
-MODE=$2
-EXP=$3
-NAME=$4
-ETA=$5 
-MULTI=$6
+MODE=$1
+EXP=$2
+NAME=$3
+ETA=$4 
+CONFIG=$5
 
-if [ "${MULTI}" = "0" ]; then
-	python3 -u ${ENV_NAME}_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK"
-elif [ "${MULTI}" = "1" ]; then
-	python3 -u ${ENV_NAME}_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --multi
+if [ "${ENV_NAME}" = "test" ]; then
+	python3 -u traffic_local.py singleagent_merge t none "$SLURM_CPUS_PER_TASK" --num_steps 1 --rollout_size 1 --horizon 300 --checkpoint 1 
+	exit 0 
+fi
+
+if [ "${CONFIG}" = "ss" ]; then
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --num_steps 1000 --rollout_size 5 --horizon 200
+elif [ "${CONFIG}" = "ls" ]; then
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" 
+elif [ "${CONFIG}" = "sm" ]; then
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --num_steps 1000 --rollout_size 5 --horizon 200 --multi
+elif [ "${CONFIG}" = "lm" ]; then
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --multi 
 else
-	echo "Must select either '0' for single agent or '1' for multi agent config, not ${MULTI}"
+	echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
 	exit 0
 fi 

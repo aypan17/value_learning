@@ -4,5 +4,6 @@
 - python == 3.7
 - flow: https://github.com/flow-project/flow
 - SUMO: https://github.com/eclipse/sumo
+- finrl: https://github.com/AI4Finance-LLC/FinRL
 
-Currently no changes have been made to Flow's underlying code.
+The flow/ and finrl/ folders hold the core of the flow and finrl repos, respectively. A few changes have been made to original code, but the majority of the code is from the original repos.

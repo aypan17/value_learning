@@ -19,17 +19,17 @@ from flow.utils.registry import make_create_env
 # - 0: 10% RL penetration,	5 max controllable vehicles
 # - 1: 25% RL penetration, 13 max controllable vehicles
 # - 2: 33% RL penetration, 17 max controllable vehicles
-EXP_NUM = 0
+EXP_NUM = 1
 
 # time horizon of a single rollout
-HORIZON = 600
+HORIZON = 300
 # number of rollouts per training iteration
 N_ROLLOUTS = 20
 # number of parallel workers
 N_CPUS = 2
 
 # inflow rate at the highway
-FLOW_RATE = 1000
+FLOW_RATE = 2000
 # percent of autonomous vehicles
 RL_PENETRATION = [0.1, 0.25, 0.33][EXP_NUM]
 # num_rl term (see ADDITIONAL_ENV_PARAMs)
@@ -40,14 +40,13 @@ NUM_RL = [5, 13, 17][EXP_NUM]
 additional_net_params = ADDITIONAL_NET_PARAMS.copy()
 additional_net_params["merge_lanes"] = 1
 additional_net_params["highway_lanes"] = 1
-additional_net_params["pre_merge_length"] = 500
+additional_net_params["pre_merge_length"] = 300
 
 # RL vehicles constitute 5% of the total number of vehicles
 vehicles = VehicleParams()
 vehicles.add(
 	veh_id="human",
 	acceleration_controller=(IDMController, {
-		"noise": 0.2
 	}),
 	car_following_params=SumoCarFollowingParams(
 		speed_mode="obey_safe_speed",
@@ -79,7 +78,7 @@ inflow.add(
 inflow.add(
 	veh_type="human",
 	edge="inflow_merge",
-	vehs_per_hour=100,
+	vehs_per_hour=400,
 	departLane="free",
 	departSpeed=7.5)
 

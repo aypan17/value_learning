@@ -33,18 +33,20 @@ def on_episode_step(info):
 	episode = info["episode"]
 	env = info["env"]
 
-	kernel = env.envs[0].k
+	kernel = env.vector_env.envs[0].k
+#	kernel = env.envs[0].k
 	vel = np.array([
 			kernel.vehicle.get_speed(veh_id)
 			for veh_id in kernel.vehicle.get_ids()
 		])
-
+		
+	rew = np.mean(vel) if all(vel > 0) else 0
 	# reward average velocity
-	episode.user_data["global_reward"].append(np.mean(vel))
+	episode.user_data["global_reward"].append(rew)
 
 def on_episode_end(info):
 	episode = info["episode"]
-	mean_rew = np.sum(episode.user_data["global_reward"])
+	mean_rew = np.mean(episode.user_data["global_reward"])
 	episode.custom_metrics["global_reward"] = mean_rew
 
 def on_train_result(info):
@@ -87,8 +89,14 @@ def parse_args(args):
 		'--num_steps', type=int, default=5000,
 		help='How many total steps to perform learning over')
 	parser.add_argument(
-		'--rollout_size', type=int, default=1000,
-		help='How many steps are in a training batch.')
+		'--rollout_size', type=int, default=20,
+		help='How many rollouts performed each episode.')
+	parser.add_argument(
+		'--horizon', type=int, default=300,
+		help='How many steps in each epsiode.')
+	parser.add_argument(
+		'--checkpoint', type=int, default=50,
+		help='How frequently to checkpoint model.')
 	parser.add_argument(
 		'--checkpoint_path', type=str, default=None,
 		help='Directory with checkpoint to restore training from.')
@@ -245,8 +253,9 @@ def train_rllib(submodule, flags):
 	flow_params = submodule.flow_params
 	flow_params["exp_tag"] = sys.argv[2]
 	flow_params["env"].additional_params["local"] = str(sys.argv[3])
+	flow_params["env"].horizon = flags.horizon
 	n_cpus = int(sys.argv[4])
-	n_rollouts = submodule.N_ROLLOUTS
+	n_rollouts = flags.rollout_size
 	policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
 	policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
 	policies_to_train = getattr(submodule, "policies_to_train", None)
@@ -263,7 +272,7 @@ def train_rllib(submodule, flags):
 		"config": {
 			**config
 		},
-		"checkpoint_freq": 20,
+		"checkpoint_freq": flags.checkpoint,
 		"checkpoint_at_end": True,
 		"max_failures": 999,
 		"stop": {
