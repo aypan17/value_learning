@@ -18,7 +18,7 @@ from finrl.config import config
 from finrl.marketdata.yahoodownloader import YahooDownloader
 from finrl.preprocessing.preprocessors import FeatureEngineer
 from finrl.preprocessing.data import data_split
-from finrl.env.env_stocktrading_v2 import StockTradingEnvV2
+from finrl.env.env_stocktrading_cashpenalty import StockTradingEnvCashpenalty
 from finrl.model.models import DRLAgent
 from finrl.trade.backtest import backtest_plot, backtest_stats
 
@@ -36,7 +36,7 @@ if not os.path.exists("./fin_results/" + config.RESULTS_DIR):
 	os.makedirs("./fin_results/" + config.RESULTS_DIR)
 
 
-def parse_args():
+def parse_args(args):
     """Parse training options user can specify in command line.
 
     Returns
@@ -86,7 +86,13 @@ def parse_args():
         '--rollout_size', type=int, default=1024,
         help='how many steps are in a training batch.')
     parser.add_argument(
-        '--lr', type=float, default=0.0001,
+        '--ent', type=float, default=0.0,
+        help='the entropy coefficient in PPO')
+    parser.add_argument(
+        '--bs', type=int, default=1024,
+        help='batch size')
+    parser.add_argument(
+        '--lr', type=float, default=0.000005,
         help='the learning rate')
     parser.add_argument(
         '--gamma', type=float, default=0.99,
@@ -101,7 +107,7 @@ def parse_args():
         '--save_path', type=str, default=datetime.now().strftime("%m-%d-%Y-%H:%M:%S"),
         help='model will be stored as ./trained_models/{save_path}')
 
-    return parser.parse_args()
+    return parser.parse_known_args(args)[0]
 
 def preprocess():
 	cfg = wandb.config
@@ -128,30 +134,28 @@ def make_env(data, multi=False):
 	information_cols = ['daily_variance', 'change', 'log_volume', 'close','day', 
 						'macd', 'rsi_30', 'cci_30', 'dx_30', 'turbulence']
 
-	train_gym = StockTradingEnvV2(df = train,initial_amount = cfg.principal,hmax = 5000, 
-									out_of_cash_penalty = cfg.low_cash_penalty, 
-									min_cash = cfg.cash_threshold,
-									cache_indicator_data=True,
+	train_gym = StockTradingEnvCashpenalty(df = train,initial_amount = cfg.principal,hmax = 5000, 
 									cash_penalty_proportion=cfg.cash_penalty_proportion, 
-									risk_tolerance=cfg.risk_tolerance,
-									reward_scaling=1,
-									daily_information_cols = information_cols, 
-									print_verbosity = 500, random_start = True)
-
-
-	trade_gym = StockTradingEnvV2(df = trade,initial_amount = cfg.principal,hmax = 5000, 
-									out_of_cash_penalty = cfg.low_cash_penalty, 
-									min_cash = cfg.cash_threshold,
-									cash_penalty_proportion=cfg.cash_penalty_proportion,
-									risk_tolerance=cfg.risk_tolerance,
-									reward_scaling = 1, 
 									cache_indicator_data=True,
+									moral = int(sys.argv[1]), 
+									env = int(sys.argv[2]),
+									social = int(sys.argv[3]),
 									daily_information_cols = information_cols, 
-									print_verbosity = 500, random_start = False)
+									print_verbosity = 5000, random_start = True)
+
+
+	trade_gym = StockTradingEnvCashpenalty(df = trade,initial_amount = cfg.principal,hmax = 5000, 
+									cash_penalty_proportion=cfg.cash_penalty_proportion,
+									cache_indicator_data=True,
+									moral = int(sys.argv[1]), 
+									env = int(sys.argv[2]),
+									social = int(sys.argv[3]),
+									daily_information_cols = information_cols, 
+									print_verbosity = 5000, random_start = False)
 
 	# for this example, let's do multiprocessing with n_cores-2
 	if multi:
-		n_cores = int(sys.argv[1])
+		n_cores = int(sys.argv[4])
 		print(f"using {n_cores} cores")
 		#this is our training env. It allows multiprocessing
 		env_train, _ = train_gym.get_multiproc_env(n = n_cores)
@@ -170,7 +174,7 @@ def make_model(env_train):
 
 	# from torch.nn import Softsign, ReLU
 	ppo_params ={'n_steps': cfg.rollout_size, 
-				 'ent_coef': 0.01, 
+				 'ent_coef': cfg.ent, 
 				 'learning_rate': cfg.lr, 
 				 'batch_size': cfg.bs, 
 				'gamma': cfg.gamma}
@@ -188,7 +192,7 @@ def make_model(env_train):
 	return model
 
 def train(model, env_trade):
-	config = wandb.cfg
+	cfg = wandb.config
 	# model = model.load("scaling_reward.model", env = env_train)
 	model.learn(total_timesteps = cfg.num_steps, 
 			eval_env = env_trade, 
@@ -215,16 +219,11 @@ def evaluate(model, test_gym):
 			 baseline_start = cfg.mid_date,
 			 baseline_end = cfg.end_date, value_col_name = 'total_assets')
 
-def main():
+def main(args):
 	
-	config = parse_args()
+	config = parse_args(args)
 
-	wandb.init(
-	  project="value-learning-test",
-	  entity="aypan17",
-	  config=config,
-	  sync_tensorboard=True
-	)
+	wandb.init(project="value-learning", entity="aypan17", group="fin", config=config, sync_tensorboard=True)
 
 	t1 = time.time()
 	data = preprocess()
@@ -247,4 +246,4 @@ def test():
 	
 if __name__ == '__main__':
 	#test()
-	main()
+	main(sys.argv[1:])

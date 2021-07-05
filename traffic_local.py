@@ -421,18 +421,13 @@ def main(args):
 	if flags.sweep:
 		flags.__dict__.update(SWEEP_CONFIG)
 		config = flags.__dict__
-		sweep_id = wandb.sweep(config, entity="aypan17", project="value-learning", sync_tensorboard=True)
+		sweep_id = wandb.sweep(config, entity="aypan17", project="value-learning", group="traffic", sync_tensorboard=True)
 		wandb.agent(sweep_id, train, count=flags.replicas)
 
 	else:
 		flags.__dict__.update(DEFAULT_CONFIG)
 		config = flags.__dict__
-		wandb.init(
-		  project="value-learning",
-		  entity="aypan17",
-		  config=config,
-		  sync_tensorboard=True
-		)
+		wandb.init(entity="aypan17", project="value-learning", group="traffic", config=config, sync_tensorboard=True)
 		train()
 
 def train():
@@ -441,10 +436,10 @@ def train():
 	# Import relevant information from the exp_config script.
 	if config.multi:
 		module = __import__(
-			"src.exp_configs.rl.multiagent", fromlist=[config.exp_config])
+			"flow_cfg.exp_configs.rl.multiagent", fromlist=[config.exp_config])
 	else:
 		module = __import__(
-			"src.exp_configs.rl.singleagent", fromlist=[config.exp_config])
+			"flow_cfg.exp_configs.rl.singleagent", fromlist=[config.exp_config])
 
 	submodule = getattr(module, config.exp_config)
 

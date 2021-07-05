@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=merge
-#SBATCH --cpus-per-task=10
+#SBATCH --cpus-per-task=20
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
@@ -71,7 +71,7 @@ NAME=$3
 ETA=$4 
 CONFIG=$5
 
-if [ "${ENV_NAME}" = "test" ]; then
+if [ "${MODE}" = "test" ]; then
 	python3 -u traffic_local.py singleagent_merge t none "$SLURM_CPUS_PER_TASK" --num_steps 1 --rollout_size 1 --horizon 300 --checkpoint 1 
 	exit 0 
 fi
