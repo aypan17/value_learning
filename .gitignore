@@ -154,6 +154,7 @@ wandb/
 /wandb
 /fin_results
 fin_results/
+flow/debug/
 
 # SLURM
 slurm*.out
