@@ -60,6 +60,9 @@ def parse_args(args):
         '--end_date', type=str, default="2021-01-01",
         help='the end date of trading in YYYY-MM-DD format')
     parser.add_argument(
+        '--ticker', type=str, default="dow",
+        help="which set of stocks to trade on. currently supports 'dow' or '30', 'nasdaq' or '100', 'sp' or '500'")
+    parser.add_argument(
         '--principal', type=float, default=1e6,
         help='the principal to trade with')
     parser.add_argument(
@@ -72,8 +75,11 @@ def parse_args(args):
         '--cash_penalty_proportion', type=float, default=0.2,
         help='the penalty for holding onto cash')
     parser.add_argument(
-        '--risk_tolerance', type=float, default=0.2,
-        help='the risk tolerance of the investor')
+        '--vol_multiplier', type=float, default=0.0,
+        help='how much the model is rewarded for trading in a volatile market (typically negative)')
+    parser.add_argument(
+        '--true_vol_multiplier', type=float, default=0.0,
+        help='how much the model is rewarded for trading in a volatile market (typically negative); calculated in true_reward')
 
 # Policy args
     parser.add_argument(
@@ -111,9 +117,17 @@ def parse_args(args):
 
 def preprocess():
 	cfg = wandb.config
+	if cfg.ticker == 'dow' or cfg.ticker == '30':
+		ticker = config.DOW_30_TICKER
+	elif cfg.ticker == 'nasdaq' or cfg.ticker == '100':
+		ticker = config.NAS_100_TICKER
+	elif cfg.ticker == 'sp' or cfg.ticker == '500':
+		ticker = config.SP_500_TICKER
+	else:
+		raise NotImplementedError()
 	df = YahooDownloader(start_date = cfg.start_date,
 					 end_date = cfg.end_date,
-					 ticker_list = config.DOW_30_TICKER).fetch_data()
+					 ticker_list = ticker).fetch_data()
 	fe = FeatureEngineer(
 					use_technical_indicator=True,
 					tech_indicator_list = config.TECHNICAL_INDICATORS_LIST,
@@ -137,6 +151,8 @@ def make_env(data, multi=False):
 	train_gym = StockTradingEnvCashpenalty(df = train,initial_amount = cfg.principal,hmax = 5000, 
 									cash_penalty_proportion=cfg.cash_penalty_proportion, 
 									cache_indicator_data=True,
+									vol_multiplier=cfg.vol_multiplier,
+									true_vol_multiplier=cfg.true_vol_multiplier,
 									moral = int(sys.argv[1]), 
 									env = int(sys.argv[2]),
 									social = int(sys.argv[3]),
@@ -147,6 +163,8 @@ def make_env(data, multi=False):
 	trade_gym = StockTradingEnvCashpenalty(df = trade,initial_amount = cfg.principal,hmax = 5000, 
 									cash_penalty_proportion=cfg.cash_penalty_proportion,
 									cache_indicator_data=True,
+									vol_multiplier=cfg.vol_multiplier,
+									true_vol_multiplier=cfg.true_vol_multiplier,
 									moral = int(sys.argv[1]), 
 									env = int(sys.argv[2]),
 									social = int(sys.argv[3]),
@@ -247,3 +265,7 @@ def test():
 if __name__ == '__main__':
 	#test()
 	main(sys.argv[1:])
+
+
+
+

@@ -72,7 +72,7 @@ ETA=$4
 CONFIG=$5
 
 if [ "${MODE}" = "test" ]; then
-	python3 -u traffic_local.py singleagent_merge t none "$SLURM_CPUS_PER_TASK" --num_steps 1 --rollout_size 1 --horizon 300 --checkpoint 1 
+	python3 -u traffic_misweight.py singleagent_ring ringMDP 0 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 
 	exit 0 
 fi
 

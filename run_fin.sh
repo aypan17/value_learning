@@ -17,22 +17,24 @@ export PATH=/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jst
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 
 MODE=$1
-MORAL=$2
-ENV=$3
-SOCIAL=$4
-NAME=$5
-CONFIG=$6
+VOL=$2
+TVOL=$3
+MORAL=$4
+ENV=$5
+SOCIAL=$6
+NAME=$7
+CONFIG=$8
 
 
 if [ "${MODE}" = "test" ]; then
-	python3 fin_misweight.py 0 0 0 "$SLURM_CPUS_PER_TASK" --rollout_size 64 --num_steps 250 --bs 64 --eval_freq 250 --state_date "2019-01-01" --mid_date "2020-01-01" --end_date "2021-01-01"
+	python3 fin_misweight.py 0 0 0 "$SLURM_CPUS_PER_TASK" --rollout_size 64 --num_steps 250 --bs 64 --eval_freq 250 --state_date "2015-01-01" --mid_date "2016-01-01" --end_date "2017-01-01"
 	exit 0 
 fi
 
 if [ "${CONFIG}" = "s" ]; then
-	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --rollout_size 256 --num_steps 250000 --bs 256 
+	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --rollout_size 256 --num_steps 250000 --bs 256 --vol_multiplier $VOL --true_vol_multiplier $TVOL
 elif [ "${CONFIG}" = "l" ]; then
-	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME
+	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --vol_multiplier $VOL --true_vol_multiplier $TVOL
 else
 	echo "Invalid config"
 	exit 0

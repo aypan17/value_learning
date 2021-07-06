@@ -145,7 +145,7 @@ class WaveAttenuationEnv(Env):
 				 for veh_id in self.k.vehicle.get_ids()]
 		pos = [self.k.vehicle.get_x_by_id(veh_id) / self.k.network.length()
 			   for veh_id in self.k.vehicle.get_ids()]
-
+		#print(np.array(speed + pos))
 		return np.array(speed + pos)
 
 	def additional_command(self):

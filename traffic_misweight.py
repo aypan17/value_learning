@@ -54,6 +54,7 @@ def on_episode_step(info):
 def on_episode_end(info):
 	episode = info["episode"]
 	mean_rew = np.sum(episode.user_data["true_reward"])
+	print(mean_rew)
 	episode.custom_metrics["true_reward"] = mean_rew
 
 def on_train_result(info):
@@ -496,4 +497,5 @@ DEFAULT_CONFIG = {
 
 if __name__ == "__main__":
 	print(sys.argv)
+	np.seterr(all='raise')	
 	main(sys.argv[1:])

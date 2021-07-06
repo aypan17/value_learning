@@ -44,6 +44,7 @@ class WandbCallback(BaseCallback):
 		self.episode_true_rewards = []
 		self.episode_percent_cost = []
 		self.episode_rewards = []
+		self.episode_vols = []
 
 	def _on_step(self) -> bool:
 		"""
@@ -55,12 +56,13 @@ class WandbCallback(BaseCallback):
 		:return: (bool) If the callback returns False, training is aborted early.
 		"""
 		out = self.training_env.get_true_reward()
-		true_rew = [r for (r, p) in out]
-		percent = [p for (r, p) in out]
+		true_rew = [r for (r, p, v) in out]
+		percent = [p for (r, p, v) in out]
+		vol = [v for (r, p, v) in out]
 		self.episode_true_rewards.append(np.mean(true_rew))
 		self.episode_percent_cost.append(np.mean(percent))
 		self.episode_rewards.append(np.mean(self.training_env.get_reward()))
-		
+		self.episode_vols.append(np.mean(vol))
 		return True
 
 	def _on_rollout_end(self) -> None:
@@ -70,7 +72,8 @@ class WandbCallback(BaseCallback):
 		wandb.log({
 				"true_reward": np.sum(self.episode_true_rewards).item(),
 				"percent_cost": np.mean(self.episode_percent_cost).item(),
-				"reward": np.sum(self.episode_rewards).item()
+				"reward": np.sum(self.episode_rewards).item(),
+				"volatility": np.sum(self.episode_vols).item()
 		})
 
 	def _on_training_end(self) -> None:
