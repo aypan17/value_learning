@@ -155,6 +155,7 @@ wandb/
 /fin_results
 fin_results/
 flow/debug/
+tensorboard_log/
 
 # SLURM
 slurm*.out
