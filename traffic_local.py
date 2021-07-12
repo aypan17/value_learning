@@ -40,13 +40,20 @@ def on_episode_step(info):
 			for veh_id in kernel.vehicle.get_ids()
 		])
 		
-	rew = np.mean(vel) if all(vel > 0) else 0
+	rew = np.mean(vel)/5 if all(vel > 0) else 0
+	
+	mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
+	accel_threshold = 0
+
+	if mean_actions > accel_threshold:
+		rew += (accel_threshold - mean_actions)
+
 	# reward average velocity
 	episode.user_data["global_reward"].append(rew)
 
 def on_episode_end(info):
 	episode = info["episode"]
-	mean_rew = np.mean(episode.user_data["global_reward"])
+	mean_rew = np.sum(episode.user_data["global_reward"])
 	episode.custom_metrics["global_reward"] = mean_rew
 
 def on_train_result(info):
@@ -204,11 +211,14 @@ def setup_exps_rllib(flow_params,
 	agent_cls = get_agent_class(alg_run)
 	config = deepcopy(agent_cls._default_config)
 
+	config["seed"] = 17
+
 	config["num_workers"] = n_cpus - 1
 	config["train_batch_size"] = horizon * n_rollouts
 	config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
 	config["gamma"] = 0.999  # discount rate
-	config["model"].update({"fcnet_hiddens": [32, 32, 32]})
+	fcnet_hiddens = [int(sys.argv[4])] * int(sys.argv[5])
+	config["model"].update({"fcnet_hiddens": fcnet_hiddens}) #[32, 32, 32]
 	config["use_gae"] = True
 	config["lambda"] = 0.97
 	config["kl_target"] = 0.02
@@ -252,9 +262,12 @@ def train_rllib(submodule, flags):
 
 	flow_params = submodule.flow_params
 	flow_params["exp_tag"] = sys.argv[2]
-	flow_params["env"].additional_params["local"] = str(sys.argv[3])
+	params = sys.argv[3].split(",")
+	print(f"Local:{params[0]}, eta:{params[1]}")
+	flow_params["env"].additional_params["local"] = str(params[0])
+	flow_params["env"].additional_params["eta"] = float(params[1])
 	flow_params["env"].horizon = flags.horizon
-	n_cpus = int(sys.argv[4])
+	n_cpus = int(sys.argv[6])
 	n_rollouts = flags.rollout_size
 	policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
 	policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
@@ -421,13 +434,13 @@ def main(args):
 	if flags.sweep:
 		flags.__dict__.update(SWEEP_CONFIG)
 		config = flags.__dict__
-		sweep_id = wandb.sweep(config, entity="aypan17", project="value-learning", group="traffic", sync_tensorboard=True)
+		sweep_id = wandb.sweep(config, entity="aypan17", project="value-learning", group="traffic-merge", sync_tensorboard=True)
 		wandb.agent(sweep_id, train, count=flags.replicas)
 
 	else:
 		flags.__dict__.update(DEFAULT_CONFIG)
 		config = flags.__dict__
-		wandb.init(entity="aypan17", project="value-learning", group="traffic", config=config, sync_tensorboard=True)
+		wandb.init(entity="aypan17", project="value-learning", group="traffic-merge", config=config, sync_tensorboard=True)
 		train()
 
 def train():

@@ -77,7 +77,8 @@ class MergePOEnv(Env):
 					'Environment parameter "{}" not supplied'.format(p))
 
 		self.local_reward = env_params.additional_params["local"]
-
+		if 'eta' in env_params.additional_params:
+			self.eta = float(env_params.additional_params['eta'])
 		# maximum number of controlled vehicles
 		self.num_rl = env_params.additional_params["num_rl"]
 
@@ -238,3 +239,48 @@ class MergePOEnv(Env):
 		self.leader = []
 		self.follower = []
 		return super().reset()
+
+class MergePOEnvAccel(MergePOEnv):
+	
+	def compute_reward(self, rl_actions, **kwargs):
+		"""See class definition."""
+		if self.env_params.evaluate:
+			return np.mean(self.k.vehicle.get_speed(self.k.vehicle.get_ids()))
+		else:
+			# return a reward of 0 if a collision occurred
+			if kwargs["fail"]:
+				return 0
+
+			# reward high system-level velocities
+			if self.local_reward == 'local':
+				cost1 = rewards.local_desired_velocity(self, self.rl_veh, fail=kwargs["fail"])
+			elif self.local_reward == 'partial_first':
+				cost1 = rewards.local_desired_velocity(self, self.rl_veh[:3], fail=kwargs["fail"])
+			elif self.local_reward == 'partial_last':
+				cost1 = rewards.local_desired_velocity(self, self.rl_veh[-3:], fail=kwargs["fail"])
+			else:
+				cost1 = rewards.desired_velocity(self, fail=kwargs["fail"])
+
+			# penalize small time headways
+			cost2 = 0
+			t_min = 1  # smallest acceptable time headway
+			for rl_id in self.rl_veh:
+				lead_id = self.k.vehicle.get_leader(rl_id)
+				if lead_id not in ["", None] \
+						and self.k.vehicle.get_speed(rl_id) > 0:
+					t_headway = max(
+						self.k.vehicle.get_headway(rl_id) /
+						self.k.vehicle.get_speed(rl_id), 0)
+					cost2 += min((t_headway - t_min) / t_min, 0)
+
+			cost3 = 0
+			mean_actions = np.mean(np.abs(np.array(rl_actions)))
+			accel_threshold = 0
+
+			if mean_actions > accel_threshold:
+				cost3 += accel_threshold - mean_actions
+
+			# weights for cost1, cost2, and cost3, respectively
+			eta1, eta2, eta3 = 1.00, 0.10, self.eta
+
+			return float(eta1 * cost1 + eta2 * cost2 + eta3 * cost3)

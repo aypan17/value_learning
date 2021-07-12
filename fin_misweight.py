@@ -19,6 +19,7 @@ from finrl.marketdata.yahoodownloader import YahooDownloader
 from finrl.preprocessing.preprocessors import FeatureEngineer
 from finrl.preprocessing.data import data_split
 from finrl.env.env_stocktrading_cashpenalty import StockTradingEnvCashpenalty
+from finrl.env.env_stocktrading_v2 import StockTradingEnvV2
 from finrl.model.models import DRLAgent
 from finrl.trade.backtest import backtest_plot, backtest_stats
 
@@ -86,19 +87,19 @@ def parse_args(args):
         '--num_steps', type=int, default=5000000,
         help='how many total steps to perform learning over')
     parser.add_argument(
-        '--eval_freq', type=int, default=2500,
+        '--eval_freq', type=int, default=500,
         help='how frequently to evaluate')
     parser.add_argument(
         '--rollout_size', type=int, default=1024,
         help='how many steps are in a training batch.')
     parser.add_argument(
-        '--ent', type=float, default=0.0,
+        '--ent', type=float, default=0.01,
         help='the entropy coefficient in PPO')
     parser.add_argument(
         '--bs', type=int, default=1024,
         help='batch size')
     parser.add_argument(
-        '--lr', type=float, default=0.000005,
+        '--lr', type=float, default=0.00001,
         help='the learning rate')
     parser.add_argument(
         '--gamma', type=float, default=0.99,
@@ -117,6 +118,7 @@ def parse_args(args):
 
 def preprocess():
 	cfg = wandb.config
+	print(wandb.config)
 	if cfg.ticker == 'dow' or cfg.ticker == '30':
 		ticker = config.DOW_30_TICKER
 	elif cfg.ticker == 'nasdaq' or cfg.ticker == '100':
@@ -125,6 +127,7 @@ def preprocess():
 		ticker = config.SP_500_TICKER
 	else:
 		raise NotImplementedError()
+	
 	df = YahooDownloader(start_date = cfg.start_date,
 					 end_date = cfg.end_date,
 					 ticker_list = ticker).fetch_data()
@@ -133,7 +136,6 @@ def preprocess():
 					tech_indicator_list = config.TECHNICAL_INDICATORS_LIST,
 					use_turbulence=True,
 					user_defined_feature = False)
-
 	processed = fe.preprocess_data(df)
 	processed['log_volume'] = np.log(processed.volume*processed.close)
 	processed['change'] = (processed.close-processed.open)/processed.close
@@ -239,9 +241,9 @@ def evaluate(model, test_gym):
 
 def main(args):
 	
-	config = parse_args(args)
-
-	wandb.init(project="value-learning", entity="aypan17", group="fin", config=config, sync_tensorboard=True)
+	conf = parse_args(args)
+	
+	wandb.init(project="value-learning", entity="aypan17", group="fin", config=conf, sync_tensorboard=True)
 
 	t1 = time.time()
 	data = preprocess()
@@ -258,12 +260,12 @@ def main(args):
 	t4 = time.time()
 	print(f"EVAL TIME: {t4-t3}")
 
-def test():
-	print(torch.__version__)
-	exit()
+#def test():
+#	print(f'CUDA:{torch.cuda.is_available()}')
+	
 	
 if __name__ == '__main__':
-	#test()
+	print(f'CUDA:{torch.cuda.is_available()}')
 	main(sys.argv[1:])
 
 

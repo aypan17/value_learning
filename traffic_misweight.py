@@ -211,19 +211,22 @@ def setup_exps_rllib(flow_params,
 
 	agent_cls = get_agent_class(alg_run)
 	config = deepcopy(agent_cls._default_config)
-
+	
+	config["seed"] = 17
+	
 	config["num_workers"] = n_cpus - 1
 	config["train_batch_size"] = horizon * n_rollouts
 	config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
 	config["gamma"] = 0.999  # discount rate
-	config["model"].update({"fcnet_hiddens": [32, 32, 32]})
+	fcnet = [int(sys.argv[4])] * int(sys.argv[5]) #[32, 32, 32]
+	config["model"].update({"fcnet_hiddens": fcnet})
 	config["use_gae"] = True
 	config["lambda"] = 0.97
 	config["kl_target"] = 0.02
 	config["vf_clip_param"] = 10000
 	config["num_sgd_iter"] = 10
 	config["horizon"] = horizon
-
+	
 	# save the flow params for replay
 	flow_json = json.dumps(
 		flow_params, cls=FlowParamsEncoder, sort_keys=True, indent=4)
@@ -262,7 +265,7 @@ def train_rllib(submodule, flags):
 	flow_params["exp_tag"] = sys.argv[2]
 	flow_params["env"].additional_params["eta"] = float(sys.argv[3])
 	flow_params["env"].horizon = flags.horizon
-	n_cpus = int(sys.argv[4])
+	n_cpus = int(sys.argv[6])
 	n_rollouts = flags.rollout_size
 	policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
 	policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
@@ -435,7 +438,7 @@ def main(args):
 	else:
 		flags.__dict__.update(DEFAULT_CONFIG)
 		config = flags.__dict__
-		wandb.init(entity="aypan17", project="value-learning", group="traffic", config=config, sync_tensorboard=True)
+		wandb.init(entity="aypan17", project="value-learning-test", group="traffic", config=config, sync_tensorboard=True)
 		train()
 
 def train():
@@ -486,14 +489,7 @@ SWEEP_CONFIG = {
 			}
 		}
 
-DEFAULT_CONFIG = {
-			'epochs': 2,
-			'batch_size': 1,
-			'lr': 0.001,
-			'optimizer': 'adam',
-			'd_model': 128,
-			'dropout': 0.1,
-		}
+DEFAULT_CONFIG = {}
 
 if __name__ == "__main__":
 	print(sys.argv)

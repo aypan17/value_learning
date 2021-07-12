@@ -1,17 +1,18 @@
 #!/bin/bash
 # shellcheck disable=SC2206
-#SBATCH --job-name=merge
-#SBATCH --cpus-per-task=20
+#SBATCH --job-name=compare
+#SBATCH --cpus-per-task=8
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
-#SBATCH -p 'high_pre'
+# #SBATCH -w shadowfax
+# #SBATCH -p 'high'
 
 set -x
 
 # simulate conda activate flow
-export PATH=/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/envs/flow/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/condabin:/usr/local/linux/anaconda3.8/bin:/accounts/projects/jsteinhardt/aypan/bin:/accounts/projects/jsteinhardt/aypan/value_learning/bin:/bin:/usr/local/linux/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin:/usr/sbin:/snap/bin:/usr/lib/rstudio-server/bin
+export PATH=/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projects/jsteinhardt/aypan/value_learning/flow:/accounts/projects/jsteinhardt/aypan/value_learning/finrl:/accounts/projects/jsteinhardt/aypan/sumo/bin:/usr/local/cuda-11.1/bin:/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projects/jsteinhardt/aypan/value_learning/flow:/accounts/projects/jsteinhardt/aypan/value_learning/finrl:/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/envs/flow/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/condabin:/usr/local/linux/anaconda3.8/bin:/accounts/projects/jsteinhardt/aypan/bin:/bin:/usr/local/linux/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin:/usr/sbin:/snap/bin:/usr/lib/rstudio-server/bin
 
 # __doc_head_address_start__
 
@@ -69,21 +70,23 @@ MODE=$1
 EXP=$2
 NAME=$3
 ETA=$4 
-CONFIG=$5
+WIDTH=$5
+DEPTH=$6
+CONFIG=$7
 
 if [ "${MODE}" = "test" ]; then
-	python3 -u traffic_misweight.py singleagent_ring ringMDP 0 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 
+	python3 -u traffic_local.py singleagent_merge_accel "test" 0 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 200 --checkpoint 1 
 	exit 0 
 fi
 
 if [ "${CONFIG}" = "ss" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --num_steps 1000 --rollout_size 5 --horizon 200
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 8 --horizon 300
 elif [ "${CONFIG}" = "ls" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" 
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
 elif [ "${CONFIG}" = "sm" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --num_steps 1000 --rollout_size 5 --horizon 200 --multi
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 8 --horizon 300 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} "$SLURM_CPUS_PER_TASK" --multi 
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
 else
 	echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
 	exit 0

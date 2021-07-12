@@ -55,25 +55,27 @@ class WandbCallback(BaseCallback):
 
 		:return: (bool) If the callback returns False, training is aborted early.
 		"""
-		out = self.training_env.get_true_reward()
-		true_rew = [r for (r, p, v) in out]
-		percent = [p for (r, p, v) in out]
-		vol = [v for (r, p, v) in out]
-		self.episode_true_rewards.append(np.mean(true_rew))
-		self.episode_percent_cost.append(np.mean(percent))
-		self.episode_rewards.append(np.mean(self.training_env.get_reward()))
-		self.episode_vols.append(np.mean(vol))
+		
+		#true_rew = [r for (r, p, v) in out]
+		#percent = [p for (r, p, v) in out]
+		#vol = [v for (r, p, v) in out]
+		#self.episode_true_rewards.append(np.mean(out))
+		#self.episode_percent_cost.append(np.mean(percent))
+		#self.episode_rewards.append(np.mean(self.training_env.get_reward()))
+		#self.episode_vols.append(np.mean(vol))
 		return True
 
 	def _on_rollout_end(self) -> None:
 		"""
 		This event is triggered before updating the policy.
 		"""
+		acc = self.training_env.get_account_info()[0]
 		wandb.log({
-				"true_reward": np.sum(self.episode_true_rewards).item(),
-				"percent_cost": np.mean(self.episode_percent_cost).item(),
-				"reward": np.sum(self.episode_rewards).item(),
-				"volatility": np.sum(self.episode_vols).item()
+				"true_reward": np.sum(acc['true_reward']).item(),
+				"social responsbility loss (%)": -1 * np.mean(acc['sr_percent']).item(),
+				"reward": np.sum(acc['reward']).item(),
+				"volatility cost": np.mean(acc['vol_cost']).item(),
+				"true volatility cost": np.mean(acc['true_vol_cost']).item()
 		})
 
 	def _on_training_end(self) -> None:

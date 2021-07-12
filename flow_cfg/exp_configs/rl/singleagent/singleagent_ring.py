@@ -27,7 +27,7 @@ vehicles.add(
         min_gap=0
     ),
     routing_controller=(ContinuousRouter, {}),
-    num_vehicles=21)
+    num_vehicles=10)
 vehicles.add(
     veh_id="rl",
     acceleration_controller=(RLController, {}),
@@ -62,7 +62,7 @@ flow_params = dict(
         additional_params={
             "max_accel": 1,
             "max_decel": 1,
-            "ring_length": [320, 370]
+            "ring_length": [120, 170]
         },
     ),
 
@@ -70,7 +70,7 @@ flow_params = dict(
     # network's documentation or ADDITIONAL_NET_PARAMS component)
     net=NetParams(
         additional_params={
-            "length": 260,
+            "length": 150,
             "lanes": 1,
             "speed_limit": 30,
             "resolution": 40,
