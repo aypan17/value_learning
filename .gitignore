@@ -159,3 +159,6 @@ tensorboard_log/
 
 # SLURM
 slurm*.out
+
+# Error files
+python-worker*
