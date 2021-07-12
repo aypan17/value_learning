@@ -162,3 +162,6 @@ slurm*.out
 
 # Error files
 python-worker*
+
+# Model files
+*.model
