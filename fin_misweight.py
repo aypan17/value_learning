@@ -99,7 +99,7 @@ def parse_args(args):
         '--bs', type=int, default=1024,
         help='batch size')
     parser.add_argument(
-        '--lr', type=float, default=0.00001,
+        '--lr', type=float, default=0.000005,
         help='the learning rate')
     parser.add_argument(
         '--gamma', type=float, default=0.99,

@@ -32,7 +32,7 @@ if [ "${MODE}" = "test" ]; then
 fi
 
 if [ "${CONFIG}" = "s" ]; then
-	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --rollout_size 256 --num_steps 250000 --bs 1024 --vol_multiplier $VOL --true_vol_multiplier $TVOL
+	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --num_steps 500000 --bs 1024 --vol_multiplier $VOL --true_vol_multiplier $TVOL
 elif [ "${CONFIG}" = "m" ]; then
 	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --rollout_size 256 --num_steps 1000000 --bs 1024 --vol_multiplier $VOL --true_vol_multiplier $TVOL
 elif [ "${CONFIG}" = "l" ]; then

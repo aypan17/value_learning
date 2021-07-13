@@ -51,6 +51,30 @@ def on_episode_step(info):
 		true_reward += eta * (accel_threshold - mean_actions)
 	episode.user_data["true_reward"].append(true_reward)
 
+
+def on_episode_step_multi(info):
+	episode = info["episode"]
+	env = info["env"]
+
+	kernel = env.envs[0].k
+	vel = np.array([
+			kernel.vehicle.get_speed(veh_id)
+			for veh_id in kernel.vehicle.get_ids()
+		])
+
+	# reward average velocity
+	eta_2 = 4.
+	true_reward = eta_2 * np.mean(vel) / 20
+
+	# punish accelerations (should lead to reduced stop-and-go waves)
+	eta = 4  # 0.25
+	mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
+	accel_threshold = 0
+
+	if mean_actions > accel_threshold:
+		true_reward += eta * (accel_threshold - mean_actions)
+	episode.user_data["true_reward"].append(true_reward)
+
 def on_episode_end(info):
 	episode = info["episode"]
 	mean_rew = np.sum(episode.user_data["true_reward"])
@@ -204,7 +228,8 @@ def setup_exps_rllib(flow_params,
 		from ray.rllib.agents.agent import get_agent_class
 	except ImportError:
 		from ray.rllib.agents.registry import get_agent_class
-
+	
+	cfg = wandb.config
 	horizon = flow_params['env'].horizon
 	print(f"Horizon: {horizon}")
 	alg_run = "PPO"
@@ -245,7 +270,7 @@ def setup_exps_rllib(flow_params,
 
 	config['callbacks'] = {
 					"on_episode_start": on_episode_start,
-					"on_episode_step": on_episode_step,
+					"on_episode_step": on_episode_step_multi if cfg.multi else on_episode_step,
 					"on_episode_end": on_episode_end,
 				}
 

@@ -1,13 +1,13 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=compare
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=12
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
 # #SBATCH -w shadowfax
-# #SBATCH -p 'high'
+#SBATCH -p 'high'
 
 set -x
 
@@ -75,7 +75,7 @@ DEPTH=$6
 CONFIG=$7
 
 if [ "${MODE}" = "test" ]; then
-	python3 -u traffic_local.py singleagent_merge_accel "test" 0 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 200 --checkpoint 1 
+	python3 -u traffic_misweight.py multiagent_ring "test" 0 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 200 --checkpoint 1 --multi
 	exit 0 
 fi
 

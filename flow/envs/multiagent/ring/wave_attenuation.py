@@ -310,3 +310,23 @@ class MultiAgentWaveAttenuationPOEnv(MultiEnv):
 
         # perform the generic reset function
         return super().reset()
+
+class MultiAgentWaveAttenuationEnv(MultiAgentWaveAttenuationPOEnv):
+	
+	@property
+	def observation_space(self):
+		return Box(low=-5, high=5, shape=(2 * self.initial_vehicles.num_vehicles, ), dtype=np.float32)
+
+	def get_state(self):
+		speed = [self.k.vehicle.get_speed(veh_id) / self.k.network.max_speed() for veh_id in self.k.vehicle.get_ids()]
+		pos = [self.k.vehicle.get_x_by_id(veh_id) / self.k.network.length() for veh_id in self.k.vehicle.get_ids()]
+		obs = np.array(speed + pos)
+		state = {}
+		for rl_id in self.k.vehicle.get_rl_ids():
+			state[rl_id] = obs
+		return state
+
+	def additional_command(self):
+		if self.k.vehicle.num_rl_vehicles > 0:
+			for veh_id in self.k.vehicle.get_human_ids():
+				self.k.vehicle.set_observed(veh_id)
