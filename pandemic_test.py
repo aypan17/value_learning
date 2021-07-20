@@ -37,14 +37,14 @@ def make_model(env):
     agent = ps.model.StageModel(env = env)
 
     # from torch.nn import Softsign, ReLU
-    ppo_params ={'n_steps': 2, 
+    ppo_params ={'n_steps': 128, 
                  'ent_coef': 0.01, 
-                 'learning_rate': 0.00009, 
+                 'learning_rate': 0.0002, 
                  'batch_size': 1024, 
                 'gamma': 0.99}
 
     policy_kwargs = {
-        "net_arch": [1024, 1024], 
+        "net_arch": [32, 32, 32], 
     }
 
     model = agent.get_model("ppo",  
@@ -64,17 +64,13 @@ def train():
     sim_config = make_cfg()
     regulations = make_reg()
     viz = make_viz(sim_config)
-    gym = ps.env.PandemicPolicyGymEnv.from_config(sim_config, pandemic_regulations=regulations)
+    true_viz = make_viz(sim_config)
+    gym = ps.env.PandemicPolicyGymEnv.from_config(sim_config=sim_config, pandemic_regulations=regulations, alpha=float(sys.argv[2]), beta=float(sys.argv[3]), gamma=float(sys.argv[4]))
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
 
     model = make_model(env)
     print("Running model")
-    model.learn(total_timesteps = 10, 
-            log_interval = 1, 
-            tb_log_name = 'test',
-            n_eval_episodes = 1,
-            callback = WandbCallback(viz))
-    model.save("different.model")
+    model.learn(total_timesteps = 20, callback = WandbCallback(viz=viz, true_viz=true_viz, multiprocessing=(n_cpus>1)))
     return model
 
 
@@ -83,16 +79,13 @@ def main():
     config = {}
 
     wandb.init(
-      project="test-space",
+      project="value-learning",
+      group="covid",
       entity="aypan17",
       config=config,
       sync_tensorboard=True
     )
     train()
-
-    #sim_config = make_cfg()
-    #viz = make_viz(sim_config)
-    #train(model, sim_config, viz)
 
 
 if __name__ == '__main__':

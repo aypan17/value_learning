@@ -3,6 +3,8 @@ import string
 from inspect import ismethod
 from typing import List, Any, Dict, Optional, Sequence, Type
 
+from datetime import datetime
+
 import numpy as np
 from cycler import cycler
 from matplotlib import pyplot as plt
@@ -58,6 +60,18 @@ class BaseMatplotLibViz(PandemicViz):
         self._num_persons = num_persons
         self._max_hospital_capacity = max_hospital_capacity or min(1, int(0.01 * num_persons))
 
+        self._axs = list()
+        self._ax_i = 0
+
+        self._gis = []
+        self._gts = []
+        self._stages = []
+
+        self._gis_legend = []
+
+        plt.rc('axes', prop_cycle=cycler(color=inf_colors))
+
+    def reset(self):
         self._axs = list()
         self._ax_i = 0
 
@@ -144,7 +158,7 @@ class BaseMatplotLibViz(PandemicViz):
                     textcoords='offset points', xycoords='axes fraction',
                     ha='center', va='center', size=14)
 
-    def plot(self, plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
+    def plot(self, epoch=None, savedir=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), is_true=False, plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
         if plots_to_show:
             fn_names = [nm for nm in plots_to_show if ismethod(getattr(self, 'plot_' + nm))]
         else:
@@ -167,7 +181,11 @@ class BaseMatplotLibViz(PandemicViz):
             plot_fn(ax, **kwargs)
             self.annotate_plot(ax, plot_ref_labels[ax_i])
         plt.tight_layout()
-        plt.show()
+        savedir = "true_" + savedir if is_true else savedir
+        if epoch is not None:
+            savedir = int(epoch) + "_" + savedir
+        plt.savefig(savedir)
+        #plt.show()
 
 
 class SimViz(BaseMatplotLibViz):

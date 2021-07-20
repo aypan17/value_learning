@@ -1,12 +1,12 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=pandemic
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=8
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
-# #SBATCH -p 'gpu_jsteinhardt'
+#SBATCH -p 'high_pre'
 # #SBATCH -w shadowfax
 
 set -x 
@@ -16,4 +16,4 @@ export PATH=/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projec
 
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 
-python3 pandemic_test.py 2
+python3 pandemic_test.py "$SLURM_CPUS_PER_TASK" 0.4 1 0.01

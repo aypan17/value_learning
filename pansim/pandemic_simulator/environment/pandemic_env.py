@@ -38,6 +38,7 @@ class PandemicGymEnv(gym.Env):
                  pandemic_sim: PandemicSim,
                  pandemic_regulations: Sequence[PandemicRegulation],
                  reward_fn: Optional[RewardFunction] = None,
+                 true_reward_fn: Optional[RewardFunction] = None,
                  done_fn: Optional[DoneFunction] = None,
                  obs_history_size: int = 1,
                  sim_steps_per_regulation: int = 24,
@@ -64,6 +65,8 @@ class PandemicGymEnv(gym.Env):
         self._non_essential_business_loc_ids = non_essential_business_location_ids
 
         self._reward_fn = reward_fn
+        self._true_reward_fn = true_reward_fn 
+
         self._done_fn = done_fn
 
         self.observation_space = spaces.Box(
@@ -133,6 +136,10 @@ class PandemicGymEnv(gym.Env):
     def last_reward(self) -> float:
         return self._last_reward
 
+    @property
+    def get_true_reward(self) -> float:
+        return self._last_true_reward
+
     def step(self, action: int) -> Tuple[PandemicObservation, float, bool, Dict]:
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
@@ -160,6 +167,7 @@ class PandemicGymEnv(gym.Env):
 
         prev_obs = self._last_observation
         self._last_reward = self._reward_fn.calculate_reward(prev_obs, action, obs) if self._reward_fn else 0.
+        self._last_true_reward = self._true_reward_fn.calculate_reward(prev_obs, action, obs) 
         done = self._done_fn.calculate_done(obs, action) if self._done_fn else False
         self._last_observation = obs
 
@@ -173,6 +181,7 @@ class PandemicGymEnv(gym.Env):
             num_non_essential_business=len(self._non_essential_business_loc_ids)
             if self._non_essential_business_loc_ids is not None else None)
         self._last_reward = 0.0
+        self._last_true_reward = 0.0
         if self._done_fn is not None:
             self._done_fn.reset()
         #return self._last_observation
@@ -187,21 +196,29 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  pandemic_sim: PandemicSim,
                  pandemic_regulations: Sequence[PandemicRegulation],
                  reward_fn: Optional[RewardFunction] = None,
+                 true_reward_fn: Optional[RewardFunction] = None,
                  done_fn: Optional[DoneFunction] = None,
                  obs_history_size: int = 1,
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
+                 alpha: float = 0.4,
+                 beta: float = 1,
+                 gamma: float = 0.1,
                  ):
+
         super().__init__(pandemic_sim,
                  pandemic_regulations,
                  reward_fn,
+                 true_reward_fn,
                  done_fn,
                  obs_history_size,
                  sim_steps_per_regulation,
-                 non_essential_business_location_ids)
+                 non_essential_business_location_ids,
+                )
+        
 
     @classmethod
-    def from_config(cls: Type['PandemicGymEnv'],
+    def from_config(cls: Type['PandemicPolicyGymEnv'],
                     sim_config: PandemicSimConfig,
                     pandemic_regulations: Sequence[PandemicRegulation],
                     sim_opts: PandemicSimOpts = PandemicSimOpts(),
@@ -209,7 +226,10 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                     done_fn: Optional[DoneFunction] = None,
                     obs_history_size: int = 1,
                     non_essential_business_location_ids: Optional[List[LocationID]] = None,
-                    ) -> 'PandemicGymEnv':
+                    alpha: float = 0.4,
+                    beta: float = 1,
+                    gamma: float = 0.1,
+                    ) -> 'PandemicPolicyGymEnv':
         """
         Creates an instance using config
 
@@ -240,6 +260,22 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
                                               num_stages=len(pandemic_regulations))
             ],
+            weights=[alpha, beta, gamma, 0.02]
+        )
+
+        true_reward_fn = SumReward(
+            reward_fns=[
+                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
+                                              summary_type=InfectionSummary.CRITICAL,
+                                              threshold=sim_config.max_hospital_capacity),
+                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
+                                              summary_type=InfectionSummary.CRITICAL,
+                                              threshold=3 * sim_config.max_hospital_capacity),
+                RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
+                                              num_stages=len(pandemic_regulations)),
+                RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
+                                              num_stages=len(pandemic_regulations))
+            ],
             weights=[.4, 1, .1, 0.02]
         )
 
@@ -247,13 +283,13 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                               pandemic_regulations=pandemic_regulations,
                               sim_steps_per_regulation=sim_opts.sim_steps_per_regulation,
                               reward_fn=reward_fn,
+                              true_reward_fn=true_reward_fn,
                               done_fn=done_fn,
                               obs_history_size=obs_history_size,
-                              non_essential_business_location_ids=non_essential_business_location_ids)
-
-    @property
-    def observation(self) -> np.ndarray:
-        return self._pandemic_sim.poll()
+                              non_essential_business_location_ids=non_essential_business_location_ids,
+                              alpha=alpha,
+                              beta=beta,
+                              gamma=gamma)
 
     def get_single_env(self):
         def get_self():
