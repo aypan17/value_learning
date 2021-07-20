@@ -39,13 +39,13 @@ def on_episode_step(info):
 			for veh_id in kernel.vehicle.get_ids()
 		])
 		
-	rew = np.mean(vel)/5 if all(vel > -100) else 0
+	rew = np.mean(vel) / 5 if all(vel > -100) else 0
 	
 	mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
 	accel_threshold = 0
 
 	if mean_actions > accel_threshold:
-		rew += (accel_threshold - mean_actions)
+		rew += 4 * (accel_threshold - mean_actions)
 
 	# reward average velocity
 	episode.user_data["global_reward"].append(rew)

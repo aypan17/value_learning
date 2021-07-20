@@ -1,13 +1,13 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=compare
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=9
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
 # #SBATCH -w shadowfax
-#SBATCH -p 'high'
+#SBATCH -p 'high_pre'
 
 set -x
 
@@ -75,7 +75,7 @@ DEPTH=$6
 CONFIG=$7
 
 if [ "${MODE}" = "test" ]; then
-	python3 -u traffic_misweight.py multiagent_ring "test" 0 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 200 --checkpoint 1 --multi
+	python3 -u traffic_local.py singleagent_bottleneck "test" none,4 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 4 --horizon 400 --checkpoint 1 
 	exit 0 
 fi
 
@@ -84,7 +84,7 @@ if [ "${CONFIG}" = "ss" ]; then
 elif [ "${CONFIG}" = "ls" ]; then
 	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
 elif [ "${CONFIG}" = "sm" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 8 --horizon 300 --multi
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 8 --horizon 800 --multi
 elif [ "${CONFIG}" = "lm" ]; then
 	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
 else

@@ -20,11 +20,11 @@ N_ROLLOUTS = 20
 # number of parallel workers
 N_CPUS = 2
 # number of automated vehicles. Must be less than or equal to 22.
-NUM_AUTOMATED = 2
+NUM_AUTOMATED = 4
 
 
 # We evenly distribute the automated vehicles in the network.
-num_human = 11 - NUM_AUTOMATED
+num_human = 12 - NUM_AUTOMATED
 humans_remaining = num_human
 
 vehicles = VehicleParams()
@@ -74,12 +74,13 @@ flow_params = dict(
     # environment related parameters (see flow.core.params.EnvParams)
     env=EnvParams(
         horizon=HORIZON,
-        warmup_steps=750,
+        warmup_steps=20,
         clip_actions=False,
         additional_params={
             "max_accel": 1,
             "max_decel": 1,
             "ring_length": [110, 140],
+            "local": None,
         },
     ),
 

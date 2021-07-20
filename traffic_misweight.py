@@ -21,6 +21,8 @@ from flow.utils.registry import make_create_env
 import numpy as np
 import wandb
 
+os.environ.setdefault("TUNE_GLOBAL_CHECKPOINT_S", str(sys.maxsize))
+
 # Callbacks
 # Custom state can be stored for the episode in the info["episode"].user_data dict
 # Custom scalar metrics reported by saving values to the info["episode"].custom_metrics dict
@@ -463,7 +465,7 @@ def main(args):
 	else:
 		flags.__dict__.update(DEFAULT_CONFIG)
 		config = flags.__dict__
-		wandb.init(entity="aypan17", project="value-learning-test", group="traffic", config=config, sync_tensorboard=True)
+		wandb.init(entity="aypan17", project="value-learning", group="traffic", config=config, sync_tensorboard=True)
 		train()
 
 def train():

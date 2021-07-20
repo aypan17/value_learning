@@ -15,7 +15,7 @@ from flow.networks import MergeNetwork
 # - 0: 10% RL penetration,  5 max controllable vehicles
 # - 1: 25% RL penetration, 13 max controllable vehicles
 # - 2: 33% RL penetration, 17 max controllable vehicles
-EXP_NUM = 1
+EXP_NUM = 0
 
 # time horizon of a single rollout
 HORIZON = 300
@@ -25,18 +25,20 @@ N_ROLLOUTS = 20
 N_CPUS = 2
 
 # inflow rate at the highway
-FLOW_RATE = 2000
+FLOW_RATE = 1500
 # percent of autonomous vehicles
-RL_PENETRATION = [0.1, 0.25, 0.33][EXP_NUM]
+RL_PENETRATION = [0.25, 0.25, 0.33][EXP_NUM]
 # num_rl term (see ADDITIONAL_ENV_PARAMs)
-NUM_RL = [5, 13, 17][EXP_NUM]
+NUM_RL = [8, 13, 17][EXP_NUM]
 
 # We consider a highway network with an upstream merging lane producing
 # shockwaves
 additional_net_params = ADDITIONAL_NET_PARAMS.copy()
 additional_net_params["merge_lanes"] = 1
 additional_net_params["highway_lanes"] = 1
-additional_net_params["pre_merge_length"] = 300
+additional_net_params["pre_merge_length"] = 100
+additional_net_params["post_merge_length"] = 75
+additional_net_params["merge_length"] = 50
 
 # RL vehicles constitute 5% of the total number of vehicles
 vehicles = VehicleParams()
