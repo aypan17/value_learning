@@ -156,6 +156,7 @@ wandb/
 fin_results/
 flow/debug/
 tensorboard_log/
+pandemic_policy/
 
 # SLURM
 slurm*.out
