@@ -34,23 +34,23 @@ def on_episode_step(info):
 	episode = info["episode"]
 	env = info["env"]
 
-	kernel = env.vector_env.envs[0].k
-	vel = np.array([
-			kernel.vehicle.get_speed(veh_id)
-			for veh_id in kernel.vehicle.get_ids()
-		])
+	kernel = env.vector_env.envs[0].true_reward
+	# vel = np.array([
+	# 		kernel.vehicle.get_speed(veh_id)
+	# 		for veh_id in kernel.vehicle.get_ids()
+	# 	])
 
-	# reward average velocity
-	eta_2 = 4.
-	true_reward = eta_2 * np.mean(vel) / 20
+	# # reward average velocity
+	# eta_2 = 4.
+	# true_reward = eta_2 * np.mean(vel) / 20
 
-	# punish accelerations (should lead to reduced stop-and-go waves)
-	eta = 4  # 0.25
-	mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
-	accel_threshold = 0
+	# # punish accelerations (should lead to reduced stop-and-go waves)
+	# eta = 4  # 0.25
+	# mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
+	# accel_threshold = 0
 
-	if mean_actions > accel_threshold:
-		true_reward += eta * (accel_threshold - mean_actions)
+	# if mean_actions > accel_threshold:
+	# 	true_reward += eta * (accel_threshold - mean_actions)
 	episode.user_data["true_reward"].append(true_reward)
 
 
@@ -58,23 +58,23 @@ def on_episode_step_multi(info):
 	episode = info["episode"]
 	env = info["env"]
 
-	kernel = env.envs[0].k
-	vel = np.array([
-			kernel.vehicle.get_speed(veh_id)
-			for veh_id in kernel.vehicle.get_ids()
-		])
+	true_reward = env.envs[0].true_reward
+	# vel = np.array([
+	# 		kernel.vehicle.get_speed(veh_id)
+	# 		for veh_id in kernel.vehicle.get_ids()
+	# 	])
 
-	# reward average velocity
-	eta_2 = 4.
-	true_reward = eta_2 * np.mean(vel) / 20
+	# # reward average velocity
+	# eta_2 = 4.
+	# true_reward = eta_2 * np.mean(vel) / 20
 
-	# punish accelerations (should lead to reduced stop-and-go waves)
-	eta = 4  # 0.25
-	mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
-	accel_threshold = 0
+	# # punish accelerations (should lead to reduced stop-and-go waves)
+	# eta = 4  # 0.25
+	# mean_actions = np.mean(np.abs(np.array(episode.last_action_for())))
+	# accel_threshold = 0
 
-	if mean_actions > accel_threshold:
-		true_reward += eta * (accel_threshold - mean_actions)
+	# if mean_actions > accel_threshold:
+	# 	true_reward += eta * (accel_threshold - mean_actions)
 	episode.user_data["true_reward"].append(true_reward)
 
 def on_episode_end(info):

@@ -50,7 +50,7 @@ srun --nodes=1 --ntasks=1 -w "$head_node" \
 
 # __doc_worker_ray_start__
 # optional, though may be useful in certain versions of Ray < 1.0.
-sleep 3
+sleep 10
 
 # number of nodes other than the head node
 worker_num=$((SLURM_JOB_NUM_NODES - 1))
@@ -66,28 +66,29 @@ done
 # __doc_worker_ray_end__
 
 # __doc_script_start__
-EXP=$1
-NAME=$2
-REWARD=$3
-WEIGHT=$4
+MODE=$1
+EXP=$2
+NAME=$3
+ETA=$4 
 WIDTH=$5
 DEPTH=$6
 CONFIG=$7
 
-if [ "${EXP}" = "test" ]; then
-    python3 -u traffic_proxy.py singleagent_merge "test" vel,accel 1,20 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
-    exit 0 
+
+if [ "${MODE}" = "test" ]; then
+	python3 -u traffic_local.py singleagent_merge "test" none,0 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
+	exit 0 
 fi
 
 if [ "${CONFIG}" = "ss" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
 elif [ "${CONFIG}" = "sm" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 7 --horizon 300 --multi
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 8 --horizon 800 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
+	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
 else
-    echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
-    exit 0
+	echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
+	exit 0
 fi 

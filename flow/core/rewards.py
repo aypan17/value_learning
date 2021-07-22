@@ -460,3 +460,84 @@ def miles_per_gallon(env, veh_ids=None, gain=.001):
     mpg /= 1609.0
 
     return mpg * gain
+
+###################################### REWARD REGISTRY ######################################
+def global_vel_all(env, rl_actions):
+    vel = np.array([
+        env.k.vehicle.get_speed(veh_id)
+        for veh_id in env.k.vehicle.get_ids()
+    ])
+    return np.mean(vel)
+
+def local_desired_vel_first(env, rl_actions):
+    return local_desired_velocity(env, env.rl_veh[:3])
+
+def local_desired_vel_last(env, rl_actions):
+    return local_desired_velocity(env, env.rl_veh[-3:])
+
+def local_desired_vel_all(env, rl_actions):
+    return local_desired_velocity(env, env.rl_veh)
+
+def outflow(env, rl_actions):
+    return env.k.vehicle.get_outflow_rate(10 * env.sim_step)
+
+def forward_progress(env, rl_actions):
+    rl_vel = env.k.vehicle.get_speed(env.k.vehicle.get_rl_ids())
+    return np.linalg.norm(rl_vel, 1)
+
+def mean_delay(env, rl_actions):
+    return min_delay_unscaled(env)
+
+def penalize_headway(env, rl_actions):
+    cost = 0
+    t_min = 1  # smallest acceptable time headway
+    for rl_id in env.rl_veh:
+        lead_id = env.k.vehicle.get_leader(rl_id)
+        if lead_id not in ["", None] and env.k.vehicle.get_speed(rl_id) > 0:
+            t_headway = max(env.k.vehicle.get_headway(rl_id) / env.k.vehicle.get_speed(rl_id), 0)
+            cost += min((t_headway - t_min) / t_min, 0)
+    return cost 
+
+def penalize_accel(env, rl_actions):
+    mean_actions = np.mean(np.abs(np.array(rl_actions)))
+    accel_threshold = 0
+    return min(0, accel_threshold - mean_actions)
+
+def penalize_lane_change(env, rl_actions):
+    reward = 0
+    for veh_id in env.k.vehicle.get_rl_ids():
+        if env.k.vehicle.get_last_lc(veh_id) == env.time_counter:
+            reward -= 0.1
+    return reward
+
+def penalize_boolean_lane_change(env, rl_actions):
+    lane_change_acts = np.abs(np.round(rl_actions[1::2])[:env.k.vehicle.num_rl_vehicles])
+    return -np.sum(lane_change_acts)
+
+def penalize_light_change(env, rl_actions):
+    return -np.sum(rl_actions >= 0.5)
+
+REWARD_REGISTRY = {
+    "vel": global_vel_all,
+    "velocity": global_vel_all,
+    "local_first": local_desired_vel_first,
+    "partial_first": local_desired_vel_first,
+    "local_last": local_desired_vel_last,
+    "partial_last": local_desired_vel_last,
+    "local": local_desired_vel_all,
+    "partial_all": local_desired_vel_all,
+    "outflow": outflow,
+    "out": outflow,
+    "forward_progress": forward_progress,
+    "forward": forward_progress,
+    "min_delay": mean_delay,
+    "delay": mean_delay,
+    "headway": penalize_headway,
+    "accel": penalize_accel,
+    "lane_change": penalize_lane_change,
+    "lane": penalize_lane_change,
+    "lane_change_bool": penalize_boolean_lane_change,
+    "lane_bool": penalize_boolean_lane_change,
+    "light_change": penalize_light_change,
+    "light": penalize_light_change
+}

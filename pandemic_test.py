@@ -65,12 +65,21 @@ def train():
     regulations = make_reg()
     viz = make_viz(sim_config)
     true_viz = make_viz(sim_config)
-    gym = ps.env.PandemicPolicyGymEnv.from_config(sim_config=sim_config, pandemic_regulations=regulations, alpha=float(sys.argv[2]), beta=float(sys.argv[3]), gamma=float(sys.argv[4]))
+    done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=128)
+    gym = ps.env.PandemicPolicyGymEnv.from_config(
+            sim_config=sim_config, 
+            pandemic_regulations=regulations, 
+            done_fn=done_fn,
+            alpha=float(sys.argv[2]), 
+            beta=float(sys.argv[3]), 
+            gamma=float(sys.argv[4]), 
+            delta=float(sys.argv[5]),
+        )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
 
     model = make_model(env)
     print("Running model")
-    model.learn(total_timesteps = 20, callback = WandbCallback(viz=viz, true_viz=true_viz, multiprocessing=(n_cpus>1)))
+    model.learn(total_timesteps = 1024 * 200, callback = WandbCallback(viz=viz, true_viz=true_viz, multiprocessing=(n_cpus>1)))
     return model
 
 

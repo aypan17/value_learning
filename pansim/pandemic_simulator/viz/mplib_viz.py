@@ -183,8 +183,8 @@ class BaseMatplotLibViz(PandemicViz):
         plt.tight_layout()
         savedir = "true_" + savedir if is_true else savedir
         if epoch is not None:
-            savedir = int(epoch) + "_" + savedir
-        plt.savefig(savedir)
+            savedir = str(int(epoch)) + "_" + savedir
+        plt.savefig(f"pandemic_policy/{savedir}")
         #plt.show()
 
 

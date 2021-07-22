@@ -28,6 +28,7 @@ class DoneFunctionType(enum.Enum):
     INFECTION_SUMMARY_ABOVE_THRESHOLD = 'infection_summary_above_threshold'
     NO_MORE_INFECTIONS = 'no_more_infections'
     NO_PANDEMIC = 'no_pandemic'
+    TIME_LIMIT = "time_limit"
 
     @staticmethod
     def values() -> List[str]:
@@ -137,6 +138,20 @@ class NoPandemicDone(DoneFunction):
         return obs.time_day[-1].item() > self._num_days and not self._pandemic_exists
 
 
+class TimeLimitDone(DoneFunction):
+    """Returns True if the number of days exceeds the threshold."""
+
+    _horizon: int 
+
+    def __init__(self, horizon: int = 128, *args: Any, **kwargs: Any):
+        super().__init__()
+        self._horizon = horizon 
+
+    def calculate_done(self, obs: PandemicObservation, action: int) -> bool:
+        return obs.time_day.item() > self._horizon 
+
+
 _register_done(DoneFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD, InfectionSummaryAboveThresholdDone)
 _register_done(DoneFunctionType.NO_MORE_INFECTIONS, NoMoreInfectionsDone)
 _register_done(DoneFunctionType.NO_PANDEMIC, NoPandemicDone)
+_register_done(DoneFunctionType.TIME_LIMIT, TimeLimitDone)

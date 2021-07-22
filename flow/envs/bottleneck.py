@@ -533,6 +533,9 @@ class BottleneckAccelEnv(BottleneckEnv):
         self.rl_id_list = deepcopy(self.initial_vehicles.get_rl_ids())
         self.max_speed = self.k.network.max_speed()
 
+        if 'eta' in env_params.additional_params:
+            self.eta = float(env_params.additional_params['eta'])
+
     @property
     def observation_space(self):
         """See class definition."""
@@ -643,9 +646,12 @@ class BottleneckAccelEnv(BottleneckEnv):
         """See class definition."""
         num_rl = self.k.vehicle.num_rl_vehicles
         lane_change_acts = np.abs(np.round(rl_actions[1::2])[:num_rl])
+        self.true_reward = (rewards.desired_velocity(self) + rewards.rl_forward_progress(
+            self, gain=0.1) - rewards.boolean_action_penalty(
+                lane_change_acts, gain=1))
         return (rewards.desired_velocity(self) + rewards.rl_forward_progress(
             self, gain=0.1) - rewards.boolean_action_penalty(
-                lane_change_acts, gain=1.0))
+                lane_change_acts, gain=self.eta))
 
     @property
     def action_space(self):

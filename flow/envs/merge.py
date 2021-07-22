@@ -75,8 +75,9 @@ class MergePOEnv(Env):
 			if p not in env_params.additional_params:
 				raise KeyError(
 					'Environment parameter "{}" not supplied'.format(p))
-
-		self.local_reward = env_params.additional_params["local"]
+				
+		if 'local' in env_params.additional_params:
+			self.local_reward = env_params.additional_params["local"]
 		if 'eta' in env_params.additional_params:
 			self.eta = float(env_params.additional_params['eta'])
 		# maximum number of controlled vehicles
@@ -168,7 +169,6 @@ class MergePOEnv(Env):
 			# return a reward of 0 if a collision occurred
 			if kwargs["fail"]:
 				return 0
-
 			# reward high system-level velocities
 			if self.local_reward == 'local':
 				cost1 = rewards.local_desired_velocity(self, self.rl_veh, fail=kwargs["fail"])
@@ -253,6 +253,7 @@ class MergePOEnvAccel(MergePOEnv):
 
 			# reward high system-level velocities
 			if self.local_reward == 'local':
+				rl_veh = self.rl_veh
 				cost1 = rewards.local_desired_velocity(self, self.rl_veh, fail=kwargs["fail"])
 			elif self.local_reward == 'partial_first':
 				cost1 = rewards.local_desired_velocity(self, self.rl_veh[:3], fail=kwargs["fail"])

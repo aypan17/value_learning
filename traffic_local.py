@@ -103,6 +103,8 @@ def parse_args(args):
 			 'exp_configs/rl/singleagent or exp_configs/rl/multiagent.')
 	parser.add_argument(
 		'--multi', action='store_true', help='Run multiagent experiment')
+	parser.add_argument(
+		'--test', action='store_true', help='No wandb')
 
 	# optional input parameters
 	parser.add_argument(
@@ -457,7 +459,6 @@ def main(args):
 		config = flags.__dict__
 		sweep_id = wandb.sweep(config, entity="aypan17", project="value-learning", group="traffic-merge", sync_tensorboard=True)
 		wandb.agent(sweep_id, train, count=flags.replicas)
-
 	else:
 		flags.__dict__.update(DEFAULT_CONFIG)
 		config = flags.__dict__

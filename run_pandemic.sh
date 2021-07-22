@@ -16,4 +16,4 @@ export PATH=/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projec
 
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 
-python3 pandemic_test.py "$SLURM_CPUS_PER_TASK" 0.4 1 0.01
+python3 pandemic_test.py "$SLURM_CPUS_PER_TASK" 0.002 0.05 0.1 0.02

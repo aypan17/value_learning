@@ -10,9 +10,8 @@ class WandbCallback(BaseCallback):
 
     :param verbose: (int) Verbosity level 0: not output 1: info 2: debug
     """
-    def __init__(self, n_ppl=100, viz=None, true_viz=None, eval_freq=10, multiprocessing=False, verbose=0):
+    def __init__(self, viz=None, true_viz=None, eval_freq=10, multiprocessing=False, verbose=0):
         
-        self.n_ppl = n_ppl
         self.viz = viz
         self.true_viz = true_viz
         self.eval_freq = eval_freq
@@ -49,13 +48,12 @@ class WandbCallback(BaseCallback):
         using the current policy.
         This event is triggered before collecting new samples.
         """
-        print(self.n_calls)
         self.episode_rewards = []
         self.episode_true_rewards = []
         self.episode_infection_data = np.array([[0, 0, 0, 0, 0]])
         self.episode_threshold = []
 
-        self.record = ((self.n_calls+1) % self.eval_freq == 0)
+        self.record = (self.n_calls % self.eval_freq == 0)
 
     def _on_step(self) -> bool:
         """
@@ -67,46 +65,45 @@ class WandbCallback(BaseCallback):
         :return: (bool) If the callback returns False, training is aborted early.
         """
         list_obs = self.training_env.get_attr("observation") if self.multi else [self.training_env.get_attr("observation")]
-        rew = np.mean(self.training_env.get_attr("last_reward"))
-        true_rew = np.mean(self.training_env.get_attr("get_true_reward"))
+        rew = self.training_env.get_attr("last_reward")
+        true_rew = self.training_env.get_attr("get_true_reward")
         infection_data = np.zeros((1, 5))
         threshold_data = np.zeros(len(list_obs))
         for obs in list_obs:
             infection_data += np.squeeze(obs.global_infection_summary, axis=0) 
             threshold_data += np.squeeze(obs.infection_above_threshold)
 
-        self.episode_rewards.append(rew)
-        self.episode_true_rewards.append(true_rew)
+        self.episode_rewards.append(np.mean(rew))
+        self.episode_true_rewards.append(np.mean(true_rew))
         self.episode_infection_data = np.concatenate([self.episode_infection_data, infection_data / len(list_obs)])
         self.episode_threshold.append(np.sum(threshold_data) / len(list_obs))
         
         if self.record:
-            self.viz.record((obs, rew))
-            self.true_viz.record((obs, true_rew))
+            self.viz.record((list_obs[0], rew[0]))
+            self.true_viz.record((list_obs[0], true_rew[0]))
         return True
 
     def _on_rollout_end(self) -> None:
         """
         This event is triggered before updating the policy.
         """
-        print(self.episode_infection_data)
-        assert False
         infection_summary = np.mean(self.episode_infection_data, axis=0)
+        n_ppl = np.sum(self.episode_infection_data[1])
         wandb.log({"reward": np.mean(self.episode_rewards), 
                    "true_reward": np.mean(self.episode_true_rewards),
-                   "proportion_critical": infection_summary[0] / self.n_ppl,
-                   "proportion_dead": infection_summary[1] / self.n_ppl,
-                   "proportion_infected": infection_summary[2] / self.n_ppl,
-                   "proportion_healthy": infection_summary[3] / self.n_ppl,
-                   "proportion_recovered": infection_summary[4] / self.n_ppl,
+                   "proportion_critical": infection_summary[0] / n_ppl,
+                   "proportion_dead": infection_summary[1] / n_ppl,
+                   "proportion_infected": infection_summary[2] / n_ppl,
+                   "proportion_healthy": infection_summary[3] / n_ppl,
+                   "proportion_recovered": infection_summary[4] / n_ppl,
                    "time_over_threshold": np.mean(self.episode_threshold),
                    })
         if self.record:
-            self.viz.plot()
-            self.true_viz.plot(is_true=True)
+            self.viz.plot(epoch=self.n_calls)
+            self.true_viz.plot(epoch=self.n_calls, is_true=True)
             self.viz.reset()
             self.true_viz.reset()
-    
+        print(f"{self.n_calls} epochs completed")
 
 
     def _on_training_end(self) -> None:

@@ -201,9 +201,6 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  obs_history_size: int = 1,
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
-                 alpha: float = 0.4,
-                 beta: float = 1,
-                 gamma: float = 0.1,
                  ):
 
         super().__init__(pandemic_sim,
@@ -229,6 +226,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                     alpha: float = 0.4,
                     beta: float = 1,
                     gamma: float = 0.1,
+                    delta: float = 0.02,
                     ) -> 'PandemicPolicyGymEnv':
         """
         Creates an instance using config
@@ -260,7 +258,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
                                               num_stages=len(pandemic_regulations))
             ],
-            weights=[alpha, beta, gamma, 0.02]
+            weights=[alpha, beta, gamma, delta]
         )
 
         true_reward_fn = SumReward(
@@ -286,10 +284,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                               true_reward_fn=true_reward_fn,
                               done_fn=done_fn,
                               obs_history_size=obs_history_size,
-                              non_essential_business_location_ids=non_essential_business_location_ids,
-                              alpha=alpha,
-                              beta=beta,
-                              gamma=gamma)
+                              non_essential_business_location_ids=non_essential_business_location_ids)
 
     def get_single_env(self):
         def get_self():
