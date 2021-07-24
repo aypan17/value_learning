@@ -7,7 +7,7 @@
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
 # #SBATCH -w shadowfax
-# #SBATCH -p 'high'
+# #SBATCH -p 'high_pre'
 
 set -x
 
@@ -50,19 +50,19 @@ srun --nodes=1 --ntasks=1 -w "$head_node" \
 
 # __doc_worker_ray_start__
 # optional, though may be useful in certain versions of Ray < 1.0.
-sleep 3
+#sleep 3
 
 # number of nodes other than the head node
-worker_num=$((SLURM_JOB_NUM_NODES - 1))
+#worker_num=$((SLURM_JOB_NUM_NODES - 1))
 
-for ((i = 1; i <= worker_num; i++)); do
-    node_i=${nodes_array[$i]}
-    echo "Starting WORKER $i at $node_i"
-    srun --nodes=1 --ntasks=1 -w "$node_i" \
-        ray start --address "$ip_head" \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
-    sleep 5
-done
+#for ((i = 1; i <= worker_num; i++)); do
+#    node_i=${nodes_array[$i]}
+#    echo "Starting WORKER $i at $node_i"
+#    srun --nodes=1 --ntasks=1 -w "$node_i" \
+#        ray start --address "$ip_head" \
+#        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
+#    sleep 5
+#done
 # __doc_worker_ray_end__
 
 # __doc_script_start__
@@ -75,7 +75,7 @@ DEPTH=$6
 CONFIG=$7
 
 if [ "${EXP}" = "test" ]; then
-    python3 -u traffic_proxy.py singleagent_merge "test" vel,accel 1,20 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
+    python3 -u traffic_proxy2.py singleagent_bottleneck "test" desired_vel,forward,lane_change_bool 1,0.1,1 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
     exit 0 
 fi
 

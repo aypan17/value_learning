@@ -469,6 +469,9 @@ def global_vel_all(env, rl_actions):
     ])
     return np.mean(vel)
 
+def desired_velocity_all(env, rl_actions):
+    return desired_velocity(env)
+
 def local_desired_vel_first(env, rl_actions):
     return local_desired_velocity(env, env.rl_veh[:3])
 
@@ -511,15 +514,22 @@ def penalize_lane_change(env, rl_actions):
     return reward
 
 def penalize_boolean_lane_change(env, rl_actions):
+    if rl_actions is None:
+        return 0
     lane_change_acts = np.abs(np.round(rl_actions[1::2])[:env.k.vehicle.num_rl_vehicles])
     return -np.sum(lane_change_acts)
 
 def penalize_light_change(env, rl_actions):
     return -np.sum(rl_actions >= 0.5)
 
+def penalize_cars(env, rl_actions):
+    return -len(env.k.vehicle.get_ids())
+
 REWARD_REGISTRY = {
     "vel": global_vel_all,
     "velocity": global_vel_all,
+    "desired_vel": desired_velocity_all,
+    "desired_velocity": desired_velocity_all,
     "local_first": local_desired_vel_first,
     "partial_first": local_desired_vel_first,
     "local_last": local_desired_vel_last,
@@ -539,5 +549,6 @@ REWARD_REGISTRY = {
     "lane_change_bool": penalize_boolean_lane_change,
     "lane_bool": penalize_boolean_lane_change,
     "light_change": penalize_light_change,
-    "light": penalize_light_change
+    "light": penalize_light_change,
+    "cars": penalize_cars,
 }

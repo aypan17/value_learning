@@ -65,7 +65,6 @@ additional_env_params = {
     "max_accel": 3,
     "max_decel": 3,
     "inflow_range": [1000, 2000],
-    "add_rl_if_exit": True,
 }
 
 # flow rate
@@ -102,7 +101,7 @@ flow_params = dict(
     exp_tag="DesiredVelocity",
 
     # name of the flow environment the experiment is running on
-    env_name=BottleneckAccelEnv,
+    env_name=BottleneckDesiredVelocityEnv,
 
     # name of the network class the experiment is running on
     network=BottleneckNetwork,
