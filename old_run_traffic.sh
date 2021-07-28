@@ -1,18 +1,21 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=compare
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=40
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
-#SBATCH --gres gpu:0
-# #SBATCH -w shadowfax
-# #SBATCH -p 'high'
+# #SBATCH --gres gpu:0
+#SBATCH -w shadowfax
+#SBATCH -p 'high'
 
 set -x
 
 # simulate conda activate flow
 export PATH=/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projects/jsteinhardt/aypan/value_learning/flow:/accounts/projects/jsteinhardt/aypan/value_learning/finrl:/accounts/projects/jsteinhardt/aypan/sumo/bin:/usr/local/cuda-11.1/bin:/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projects/jsteinhardt/aypan/value_learning/flow:/accounts/projects/jsteinhardt/aypan/value_learning/finrl:/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/envs/flow/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/condabin:/usr/local/linux/anaconda3.8/bin:/accounts/projects/jsteinhardt/aypan/bin:/bin:/usr/local/linux/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin:/usr/sbin:/snap/bin:/usr/lib/rstudio-server/bin
+
+# Move wandb logs to scratch 
+export WANDB_DIR=/global/scratch/aypan17/ 
 
 # __doc_head_address_start__
 
@@ -66,28 +69,25 @@ done
 # __doc_worker_ray_end__
 
 # __doc_script_start__
-MODE=$1
+CONFIG=$1
 EXP=$2
 NAME=$3
-ETA=$4 
-WIDTH=$5
-DEPTH=$6
-CONFIG=$7
+REWARD=$4 
+WEIGHT=$5
 
-
-if [ "${MODE}" = "test" ]; then
-	python3 -u traffic_local.py singleagent_bottleneck "test" none,0 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
+if [ "${CONFIG}" = "test" ]; then
+	python3 -u traffic_local.py singleagent_merge "test" none,0 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
 	exit 0 
 fi
 
 if [ "${CONFIG}" = "ss" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
+	python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --num_steps 5000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
+	python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --rollout_size 7
 elif [ "${CONFIG}" = "sm" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 8 --horizon 800 --multi
+	python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --num_steps 5000 --rollout_size 7 --horizon 300 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-	python3 -u traffic_${MODE}.py ${EXP} ${NAME} ${ETA} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
+	python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --multi --rollout_size 7
 else
 	echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
 	exit 0

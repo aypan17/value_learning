@@ -382,5 +382,5 @@ def create_parser():
 if __name__ == '__main__':
     parser = create_parser()
     args = parser.parse_args()
-    ray.init(num_cpus=1)
+    ray.init(num_cpus=1, temp_dir="/global/scratch/aypan17/ray")
     visualizer_rllib(args)

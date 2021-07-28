@@ -39,7 +39,7 @@ def make_model(env):
     # from torch.nn import Softsign, ReLU
     ppo_params ={'n_steps': 128, 
                  'ent_coef': 0.01, 
-                 'learning_rate': 0.0002, 
+                 'learning_rate': 0.00005, 
                  'batch_size': 1024, 
                 'gamma': 0.99}
 

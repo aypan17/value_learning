@@ -170,14 +170,14 @@ class MergePOEnv(Env):
 			if kwargs["fail"]:
 				return 0
 			# reward high system-level velocities
-			if self.local_reward == 'local':
-				cost1 = rewards.local_desired_velocity(self, self.rl_veh, fail=kwargs["fail"])
-			elif self.local_reward == 'partial_first':
-				cost1 = rewards.local_desired_velocity(self, self.rl_veh[:3], fail=kwargs["fail"])
-			elif self.local_reward == 'partial_last':
-				cost1 = rewards.local_desired_velocity(self, self.rl_veh[-3:], fail=kwargs["fail"])
-			else:
-				cost1 = rewards.desired_velocity(self, fail=kwargs["fail"])
+			#if self.local_reward == 'local':
+			#	cost1 = rewards.local_desired_velocity(self, self.rl_veh, fail=kwargs["fail"])
+			#elif self.local_reward == 'partial_first':
+			#	cost1 = rewards.local_desired_velocity(self, self.rl_veh[:3], fail=kwargs["fail"])
+			#elif self.local_reward == 'partial_last':
+			#	cost1 = rewards.local_desired_velocity(self, self.rl_veh[-3:], fail=kwargs["fail"])
+			#else:
+			cost1 = rewards.desired_velocity(self, fail=kwargs["fail"])
 
 			# penalize small time headways
 			cost2 = 0
