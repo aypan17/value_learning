@@ -79,20 +79,21 @@ EXP=$2
 NAME=$3
 REWARD=$4
 WEIGHT=$5
+GAMMA=$6
 
 if [ "${CONFIG}" = "test" ]; then
-    python3 -u traffic_savio.py singleagent_bottleneck "test" vel,accel 1,20 --num_steps 2 --rollout_size 7 --horizon 300 --checkpoint 1 
+    python3 -u traffic_savio.py singleagent_bottleneck "test" vel,accel 1,20 0.999 --num_steps 2 --rollout_size 7 --horizon 300 --checkpoint 1 
     exit 0 
 fi
 
 if [ "${CONFIG}" = "ss" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --num_steps 5000 --rollout_size 7 --horizon 300 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --rollout_size 7 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --rollout_size 7 
 elif [ "${CONFIG}" = "sm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --num_steps 5000 --rollout_size 7 --horizon 300 --multi
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} --rollout_size 7 --multi 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --rollout_size 7 --multi 
 else
     echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
     exit 0

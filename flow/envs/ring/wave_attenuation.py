@@ -84,7 +84,6 @@ class WaveAttenuationEnv(Env):
 				raise KeyError(
 					'Environment parameter \'{}\' not supplied'.format(p))
 		
-		self.eta = float(env_params.additional_params['eta'])
 		super().__init__(env_params, sim_params, network, simulator)
 
 	@property

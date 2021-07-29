@@ -23,13 +23,15 @@ import numpy as np
 import wandb
 import neptune.new as neptune
 
+GAMMA=float(sys.argv[5])
+
 # Callbacks
 # Custom state can be stored for the episode in the info["episode"].user_data dict
 # Custom scalar metrics reported by saving values to the info["episode"].custom_metrics dict
 def on_episode_start(info):
 		episode = info["episode"]
 		episode.user_data["true_reward"] = []
-		episode.user_data["reward"] = []
+		episode.user_data["proxy_reward"] = []
 
 def on_episode_step(info):
 		episode = info["episode"]
@@ -53,7 +55,7 @@ def on_episode_step(info):
 
 		# record
 		episode.user_data["true_reward"].append(rew)
-		episode.user_data["reward"].append(episode.prev_reward_for())
+		episode.user_data["proxy_reward"].append(episode.prev_reward_for())
 
 def on_episode_step_multi(info):
 		episode = info["episode"]
@@ -69,20 +71,19 @@ def on_episode_step_multi(info):
 
 		# reward average velocity
 		episode.user_data["true_reward"].append(true_rew)
-		episode.user_data["reward"].append(episode.prev_reward_for())
+		episode.user_data["proxy_reward"].append(episode.prev_reward_for())
 
 def on_episode_end(info):
 		episode = info["episode"]
+	
+		horizon = len(episode.user_data["proxy_reward"])
+		true_w = np.geomspace(1, 0.999**(horizon-1), num=horizon)
+		proxy_w = np.geomspace(1, GAMMA**(horizon-1), num=horizon)
+		true_rew = np.dot(true_w, np.array(episode.user_data["true_reward"]))
+		rew = np.dot(proxy_w, np.array(episode.user_data["proxy_reward"]))
 
-		model_arch = [l.units for l in episode._policies['default_policy'].model.base_model.layers[1:-2:2]]
-
-		true_rew = np.sum(episode.user_data["true_reward"])
-		reward = np.sum(episode.user_data["reward"])
 		episode.custom_metrics["true_reward"] = true_rew				
-		episode.custom_metrics["reward"] = reward
-		#run[f"metrics/{str(model_arch)}_true_reward"].log(true_rew)
-		#run[f"metrics/{str(model_arch)}_reward"].log(reward)
-		#wandb.log({str(model_arch) : {"true_reward": true_rew, "reward": reward}})
+		episode.custom_metrics["proxy_reward"] = rew
 
 def on_train_result(info):
 		pass
@@ -183,12 +184,13 @@ def setup_exps_rllib(flow_params,
 
 		config["seed"] = 17
 
-		config["num_workers"] = 7 #n_cpus - 1
+		config["num_workers"] = 4 #n_cpus - 1
 		config["train_batch_size"] = horizon * n_rollouts
 		config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
-		config["gamma"] = 0.999  # discount rate
+		config["gamma"] = GAMMA  # discount rate
 		#fcnet_hiddens = [int(sys.argv[5])] * int(sys.argv[6])
-		config["model"].update({"fcnet_hiddens": tune.grid_search([[8, 8], [32, 32], [64, 64], [128, 128], [256, 256]])}) #[32, 32, 32]
+		config["model"].update({"fcnet_hiddens": tune.grid_search([[], [8, 8], [32, 32], [64, 64], [128, 128]])})
+		#config["model"].update({"fcnet_hiddens": tune.grid_search([[], [4, 4], [16, 16], [32, 32], [64, 64], [64, 64, 64], [128, 128], [256, 256]])}) #[32, 32, 32]
 		config["use_gae"] = True
 		config["lambda"] = 0.97
 		config["kl_target"] = 0.02
@@ -254,7 +256,7 @@ def train(flags):
 		policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
 		policies_to_train = getattr(submodule, "policies_to_train", None)
 		
-		model_name = flags.exp_config.split("_")[1] + "_" + "_".join([r+','+str(w) for r, w in reward_specification])	
+		model_name = flags.exp_config.split("_")[1] + "_" + sys.argv[2] + "_".join([r+','+str(w) for r, w in reward_specification])	
 		def name(x):
 			return model_name		
 
@@ -278,6 +280,7 @@ def train(flags):
 						"training_iteration": flags.num_steps,
 				},
 				"trial_name_creator": name,
+				"local_dir": "/global/scratch/aypan17/ray_results"
 		}
 
 		if flags.checkpoint_path is not None:
