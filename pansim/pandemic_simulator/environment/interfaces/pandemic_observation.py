@@ -1,6 +1,6 @@
 # Confidential, Copyright 2020, Sony Corporation of America, All rights reserved.
 from dataclasses import dataclass
-from typing import Sequence, Type, cast, Optional
+from typing import Sequence, Type, cast, Optional, Sequence
 
 import numpy as np
 
@@ -22,8 +22,9 @@ class PandemicObservation:
     stage: np.ndarray
     infection_above_threshold: np.ndarray
     time_day: np.ndarray
+    state: PandemicSimState
     unlocked_non_essential_business_locations: Optional[np.ndarray] = None
-
+    
     @classmethod
     def create_empty(cls: Type['PandemicObservation'],
                      history_size: int = 1,
@@ -41,9 +42,11 @@ class PandemicObservation:
                                    stage=np.zeros((history_size, 1, 1)),
                                    infection_above_threshold=np.zeros((history_size, 1, 1)),
                                    time_day=np.zeros((history_size, 1, 1)),
+                                   state=None,
                                    unlocked_non_essential_business_locations=np.zeros((history_size, 1,
                                                                                        num_non_essential_business))
-                                   if num_non_essential_business is not None else None)
+                                   if num_non_essential_business is not None else None,
+                                   )
 
     def update_obs_with_sim_state(self, sim_state: PandemicSimState,
                                   hist_index: int = 0,
@@ -74,6 +77,8 @@ class PandemicObservation:
         self.infection_above_threshold[hist_index, 0] = int(sim_state.infection_above_threshold)
 
         self.time_day[hist_index, 0] = int(sim_state.sim_time.day)
+
+        self.state = sim_state
 
     @property
     def infection_summary_labels(self) -> Sequence[str]:

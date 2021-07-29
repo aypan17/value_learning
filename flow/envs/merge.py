@@ -170,14 +170,14 @@ class MergePOEnv(Env):
 			if kwargs["fail"]:
 				return 0
 			# reward high system-level velocities
-			if self.local_reward == 'local':
-				cost1 = rewards.local_desired_velocity(self, self.rl_veh, fail=kwargs["fail"])
-			elif self.local_reward == 'partial_first':
-				cost1 = rewards.local_desired_velocity(self, self.rl_veh[:3], fail=kwargs["fail"])
-			elif self.local_reward == 'partial_last':
-				cost1 = rewards.local_desired_velocity(self, self.rl_veh[-3:], fail=kwargs["fail"])
-			else:
-				cost1 = rewards.desired_velocity(self, fail=kwargs["fail"])
+			#if self.local_reward == 'local':
+			#	cost1 = rewards.local_desired_velocity(self, self.rl_veh, fail=kwargs["fail"])
+			#elif self.local_reward == 'partial_first':
+			#	cost1 = rewards.local_desired_velocity(self, self.rl_veh[:3], fail=kwargs["fail"])
+			#elif self.local_reward == 'partial_last':
+			#	cost1 = rewards.local_desired_velocity(self, self.rl_veh[-3:], fail=kwargs["fail"])
+			#else:
+			cost1 = rewards.desired_velocity(self, fail=kwargs["fail"])
 
 			# penalize small time headways
 			cost2 = 0
@@ -191,10 +191,17 @@ class MergePOEnv(Env):
 						self.k.vehicle.get_speed(rl_id), 0)
 					cost2 += min((t_headway - t_min) / t_min, 0)
 
-			# weights for cost1, cost2, and cost3, respectively
-			eta1, eta2 = 1.00, 0.10
+			cost3 = 0
+			mean_actions = np.mean(np.abs(np.array(rl_actions)))
+			accel_threshold = 0
 
-			return max(eta1 * cost1 + eta2 * cost2, 0)
+			if mean_actions > accel_threshold:
+				cost3 += accel_threshold - mean_actions
+
+			# weights for cost1, cost2, and cost3, respectively
+			eta1, eta2, eta3 = 1.00, 0.10, 1
+
+			return max(eta1 * cost1 + eta2 * cost2 + eta3 * cost3, 0)
 
 	def additional_command(self):
 		"""See parent class.

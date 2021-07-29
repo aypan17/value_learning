@@ -1,12 +1,17 @@
 from tqdm import trange
 
+import time
+import numpy as np
+
 import pandemic_simulator as ps
-#from model import StageModel
+from pandemic_simulator.environment.reward import RewardFunction, SumReward, RewardFunctionFactory, RewardFunctionType
+from pandemic_simulator.environment.interfaces import InfectionSummary
 from pandemic_simulator.callback import WandbCallback
 import sys
 import wandb
 
 def make_cfg():
+    #return ps.sh.small_town_config
     sim_config = ps.env.PandemicSimConfig(
         num_persons=500,
         location_configs=[
@@ -39,12 +44,16 @@ def make_model(env):
     # from torch.nn import Softsign, ReLU
     ppo_params ={'n_steps': 128, 
                  'ent_coef': 0.01, 
-                 'learning_rate': 0.0002, 
-                 'batch_size': 1024, 
+                 'learning_rate': 0.0001, 
+                 'batch_size': 64,  
                 'gamma': 0.99}
 
+    d_model = int(sys.argv[6])
+    n_layers = int(sys.argv[7])
+    net_arch = [d_model] * n_layers if n_layers != 0 else []
+
     policy_kwargs = {
-        "net_arch": [32, 32, 32], 
+        "net_arch": [dict(pi=net_arch, vf=net_arch)], 
     }
 
     model = agent.get_model("ppo",  
@@ -55,7 +64,7 @@ def make_model(env):
 
 def train():
     cfg = wandb.config
-    n_cpus = int(sys.argv[1])
+    n_cpus = int(sys.argv[8])
     ps.init_globals(seed=0)
     # Loop
     # Make regulations
@@ -64,24 +73,34 @@ def train():
     sim_config = make_cfg()
     regulations = make_reg()
     viz = make_viz(sim_config)
-    true_viz = make_viz(sim_config)
     done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=128)
+
+    reward_fn = SumReward(
+            reward_fns=[
+                RewardFunctionFactory.default(RewardFunctionType.ELDERLY_HOSPITALIZED),
+                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
+                                              summary_type=InfectionSummary.CRITICAL,
+                                              threshold=sim_config.max_hospital_capacity),
+                RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
+                                              num_stages=len(regulations)),
+                RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
+                                              num_stages=len(regulations))
+            ],
+            weights=[float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5])]
+        )
+
     gym = ps.env.PandemicPolicyGymEnv.from_config(
             sim_config=sim_config, 
             pandemic_regulations=regulations, 
             done_fn=done_fn,
-            alpha=float(sys.argv[2]), 
-            beta=float(sys.argv[3]), 
-            gamma=float(sys.argv[4]), 
-            delta=float(sys.argv[5]),
+            reward_fn=reward_fn
         )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
 
     model = make_model(env)
     print("Running model")
-    model.learn(total_timesteps = 1024 * 200, callback = WandbCallback(viz=viz, true_viz=true_viz, multiprocessing=(n_cpus>1)))
+    model.learn(total_timesteps = 2048 * 100, callback = WandbCallback(name=sys.argv[1], viz=viz, multiprocessing=(n_cpus>1)))
     return model
-
 
 def main():
 

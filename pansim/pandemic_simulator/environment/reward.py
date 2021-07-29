@@ -9,7 +9,7 @@ import numpy as np
 __all__ = ['RewardFunction', 'RewardFunctionType', 'RewardFunctionFactory', 'SumReward',
            'UnlockedBusinessLocationsReward', 'InfectionSummaryIncreaseReward',
            'InfectionSummaryAboveThresholdReward', 'LowerStageReward', 'InfectionSummaryAbsoluteReward',
-           'SmoothStageChangesReward']
+           'SmoothStageChangesReward', 'ElderlyHospitalizedReward']
 
 from .interfaces import PandemicObservation, InfectionSummary, sorted_infection_summary
 
@@ -30,6 +30,7 @@ class RewardFunctionType(enum.Enum):
     UNLOCKED_BUSINESS_LOCATIONS = 'unlocked_business_locations'
     LOWER_STAGE = 'lower_stage'
     SMOOTH_STAGE_CHANGES = 'smooth_stage_changes'
+    ELDERLY_HOSPITALIZED = 'elderly_hospitalized'
 
     @staticmethod
     def values() -> List[str]:
@@ -77,6 +78,14 @@ class SumReward(RewardFunction):
             assert len(weights) == len(reward_fns), 'There must be one weight for each reward function.'
         else:
             weights = [1.] * len(reward_fns)
+
+        i = 0
+        while i < len(weights):
+            if weights[i] == 0:
+                weights.pop(i)
+                reward_fns.pop(i)
+            i += 1
+
         self._weights = np.asarray(weights)
         self._reward_fns = reward_fns
 
@@ -176,6 +185,18 @@ class SmoothStageChangesReward(RewardFunction):
     def calculate_reward(self, prev_obs: PandemicObservation, action: int, obs: PandemicObservation) -> float:
         return float(-1 * np.abs(obs.stage - prev_obs.stage).mean())
 
+class ElderlyHospitalizedReward(RewardFunction):
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+    def calculate_reward(self, prev_obs: PandemicObservation, action: int, obs: PandemicObservation) -> float:
+        rew = 0
+        for person, state in obs.state.id_to_person_state.items():
+            if person.age > 65 and state.infection_state.is_hospitalized:
+                rew -= 1
+        return rew
+
 
 _register_reward(RewardFunctionType.INFECTION_SUMMARY_INCREASE, InfectionSummaryIncreaseReward)
 _register_reward(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD, InfectionSummaryAboveThresholdReward)
@@ -183,3 +204,4 @@ _register_reward(RewardFunctionType.INFECTION_SUMMARY_ABSOLUTE, InfectionSummary
 _register_reward(RewardFunctionType.UNLOCKED_BUSINESS_LOCATIONS, UnlockedBusinessLocationsReward)
 _register_reward(RewardFunctionType.LOWER_STAGE, LowerStageReward)
 _register_reward(RewardFunctionType.SMOOTH_STAGE_CHANGES, SmoothStageChangesReward)
+_register_reward(RewardFunctionType.ELDERLY_HOSPITALIZED, ElderlyHospitalizedReward)

@@ -9,7 +9,7 @@ from gym import spaces
 
 from .done import DoneFunction
 from .interfaces import LocationID, PandemicObservation, NonEssentialBusinessLocationState, PandemicRegulation, \
-    InfectionSummary
+    InfectionSummary, sorted_infection_summary
 from .pandemic_sim import PandemicSim
 from .reward import RewardFunction, SumReward, RewardFunctionFactory, RewardFunctionType
 from .simulator_config import PandemicSimConfig
@@ -133,6 +133,14 @@ class PandemicGymEnv(gym.Env):
         return self._last_observation
 
     @property
+    def observe(self) -> np.ndarray:
+        o = self._last_observation
+        hospitalized = max(o.global_infection_summary[0][0][0], self._pandemic_sim._max_hospital_capacity)
+        a = np.concatenate([[[[hospitalized]]], o.global_testing_summary, o.stage, o.infection_above_threshold, o.time_day], axis=2).flatten()
+        print(a)
+        return a
+
+    @property
     def last_reward(self) -> float:
         return self._last_reward
 
@@ -173,6 +181,7 @@ class PandemicGymEnv(gym.Env):
 
         #return self._last_observation, self._last_reward, done, {}
         return self._pandemic_sim.poll(), self._last_reward, done, {}
+        #return self.observe, self._last_reward, done, {}
 
     def reset(self) -> PandemicObservation:
         self._pandemic_sim.reset()
@@ -186,6 +195,7 @@ class PandemicGymEnv(gym.Env):
             self._done_fn.reset()
         #return self._last_observation
         return self._pandemic_sim.poll()
+        #return self.observe
 
     def render(self, mode: str = 'human') -> bool:
         pass
@@ -288,7 +298,9 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
 
     def get_single_env(self):
         def get_self():
-            return deepcopy(self)
+            s = deepcopy(self)
+            s._pandemic_sim._numpy_rng=np.random.RandomState(0)
+            return s
 
         e = DummyVecEnv([get_self])
         obs = e.reset()
@@ -296,8 +308,10 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
 
     def get_multi_env(self, n=10):
         def get_self():
-            return deepcopy(self)
+            s = deepcopy(self)
+            s._pandemic_sim._numpy_rng=np.random.RandomState(np.random.randint(low=0,high=2**31))
+            return s
 
-        e = SubprocVecEnv([get_self for _ in range(n)], start_method="fork")
+        e = SubprocVecEnv([get_self for i in range(n)], start_method="fork")
         obs = e.reset()
         return e

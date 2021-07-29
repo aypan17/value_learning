@@ -27,12 +27,13 @@ class PlotType:
     location_visitor_visits: str = 'location_visitor_visits'
     infection_source = 'infection_source'
     cumulative_reward = 'cumulative_reward'
+    cumulative_true_reward = 'cumulative_true_reward'
 
     @staticmethod
     def plot_order() -> List[str]:
         return [PlotType.global_infection_summary, PlotType.global_testing_summary, PlotType.critical_summary,
                 PlotType.stages, PlotType.location_assignee_visits, PlotType.location_visitor_visits,
-                PlotType.infection_source, PlotType.cumulative_reward]
+                PlotType.infection_source, PlotType.cumulative_reward, PlotType.cumulative_true_reward]
 
 
 class BaseMatplotLibViz(PandemicViz):
@@ -71,17 +72,6 @@ class BaseMatplotLibViz(PandemicViz):
 
         plt.rc('axes', prop_cycle=cycler(color=inf_colors))
 
-    def reset(self):
-        self._axs = list()
-        self._ax_i = 0
-
-        self._gis = []
-        self._gts = []
-        self._stages = []
-
-        self._gis_legend = []
-
-        plt.rc('axes', prop_cycle=cycler(color=inf_colors))
 
     @classmethod
     def from_config(cls: Type['BaseMatplotLibViz'], sim_config: PandemicSimConfig) -> 'BaseMatplotLibViz':
@@ -158,7 +148,7 @@ class BaseMatplotLibViz(PandemicViz):
                     textcoords='offset points', xycoords='axes fraction',
                     ha='center', va='center', size=14)
 
-    def plot(self, epoch=None, savedir=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), is_true=False, plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
+    def plot(self, epoch=None, savedir=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
         if plots_to_show:
             fn_names = [nm for nm in plots_to_show if ismethod(getattr(self, 'plot_' + nm))]
         else:
@@ -181,7 +171,6 @@ class BaseMatplotLibViz(PandemicViz):
             plot_fn(ax, **kwargs)
             self.annotate_plot(ax, plot_ref_labels[ax_i])
         plt.tight_layout()
-        savedir = "true_" + savedir if is_true else savedir
         if epoch is not None:
             savedir = str(int(epoch)) + "_" + savedir
         plt.savefig(f"pandemic_policy/{savedir}")
@@ -277,6 +266,7 @@ class SimViz(BaseMatplotLibViz):
 
 class GymViz(BaseMatplotLibViz):
     _rewards: List[float]
+    _true_rewards: List[float]
 
     def __init__(self, num_persons: int, max_hospital_capacity: Optional[int] = None):
         """
@@ -285,6 +275,7 @@ class GymViz(BaseMatplotLibViz):
         """
         super().__init__(num_persons=num_persons, max_hospital_capacity=max_hospital_capacity)
         self._rewards = []
+        self._true_rewards = []
 
     def plot_cumulative_reward(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
@@ -292,11 +283,33 @@ class GymViz(BaseMatplotLibViz):
         ax.set_title('Cumulative Reward')
         ax.set_xlabel('time (days)')
 
+    def plot_cumulative_true_reward(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        ax.plot(np.cumsum(self._true_rewards))
+        ax.set_title('Cumulative True Reward')
+        ax.set_xlabel('time (days)')
+
     def record(self, data: Any) -> None:
         if isinstance(data, tuple):
-            obs, reward = data
+            obs, reward, true_rew = data
             self._rewards.append(reward)
+            self._true_rewards.append(true_rew)
         else:
             obs = data
         assert isinstance(obs, PandemicObservation)
         self.record_obs(obs)
+
+    def reset(self):
+        self._axs = list()
+        self._ax_i = 0
+
+        self._gis = []
+        self._gts = []
+        self._stages = []
+
+        self._gis_legend = []
+
+        self._rewards = []
+        self._true_rewards = []
+
+        plt.rc('axes', prop_cycle=cycler(color=inf_colors))

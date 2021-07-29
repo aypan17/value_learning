@@ -57,7 +57,8 @@ class PandemicSim:
                  new_time_slot_interval: SimTimeInterval = SimTimeInterval(day=1),
                  infection_update_interval: SimTimeInterval = SimTimeInterval(day=1),
                  person_routine_assignment: Optional[PersonRoutineAssignment] = None,
-                 infection_threshold: int = 0):
+                 infection_threshold: int = 0,
+                 hospital_capacity: int = 0):
         """
         :param locations: A sequence of Location instances.
         :param persons: A sequence of Person instances.
@@ -73,7 +74,7 @@ class PandemicSim:
         """
         assert globals.registry, 'No registry found. Create the repo wide registry first by calling init_globals()'
         self._registry = globals.registry
-        self._numpy_rng = globals.numpy_rng
+        self._numpy_rng = np.random.RandomState(np.random.randint(low=0,high=2**31))# globals.numpy_rng
 
         self._id_to_location = OrderedDict({loc.id: loc for loc in locations})
         assert self._registry.location_ids.issuperset(self._id_to_location)
@@ -92,7 +93,19 @@ class PandemicSim:
             self._type_to_locations[type(loc)].append(loc)
         self._hospital_ids = [loc.id for loc in locations if isinstance(loc, Hospital)]
 
+        self._max_hospital_capacity = hospital_capacity
+
         self._persons = persons
+        self._minors = []
+        self._workers = []
+        self._retirees = []
+        for p in persons:
+            if p._id.age <= 18:
+                self._minors.append(p)
+            elif p._id.age <= 65:
+                self._workers.append(p)
+            else:
+                self._retirees.append(p)
 
         # assign routines
         if person_routine_assignment is not None:
@@ -162,7 +175,8 @@ class PandemicSim:
                            pandemic_testing=pandemic_testing,
                            contact_tracer=contact_tracer,
                            infection_threshold=sim_opts.infection_threshold,
-                           person_routine_assignment=sim_config.person_routine_assignment)
+                           person_routine_assignment=sim_config.person_routine_assignment,
+                           hospital_capacity=sim_config.max_hospital_capacity)
 
     @property
     def registry(self) -> Registry:
@@ -269,24 +283,25 @@ class PandemicSim:
         """Returns an observation of the current state of the simulator. Used to update regulation specifics."""
         stage = [int(self._state.regulation_stage)]
         threshold_reached = [int(self._state.infection_above_threshold)]
-        num_tests = [self._state.global_testing_state.num_tests / len(self._persons)]
+        hospitalizations = [max(self._max_hospital_capacity, self._state.global_infection_summary.get(InfectionSummary.CRITICAL))]
         test_results = [self._state.global_testing_state.summary.get(s) for s in sorted_infection_summary]
-        summary = np.array(stage + threshold_reached + num_tests + test_results)
+        summary = np.array(stage + threshold_reached + hospitalizations + test_results)
+        return summary
 
-        loc_data = []
-        for l in self.location_names:
-            entries = 0
-            visits = 0
-            for p in self.person_types:
-                entries += self._state.global_location_summary[(l, p)].entry_count
-                visits += self._state.global_location_summary[(l, p)].visitor_count
-            loc_data.append(entries)
-            loc_data.append(visits)
-        # Subtract because we only want a moving average of the previous restrictions
-        loc_data = (np.array(loc_data) - self.prev_loc_data) / len(self._persons)
-        self.prev_loc_data = loc_data 
+        # loc_data = []
+        # for l in self.location_names:
+        #     entries = 0
+        #     visits = 0
+        #     for p in self.person_types:
+        #         entries += self._state.global_location_summary[(l, p)].entry_count
+        #         visits += self._state.global_location_summary[(l, p)].visitor_count
+        #     loc_data.append(entries)
+        #     loc_data.append(visits)
+        # # Subtract because we only want a moving average of the previous restrictions
+        # loc_data = (np.array(loc_data) - self.prev_loc_data) / len(self._persons)
+        # self.prev_loc_data = loc_data 
 
-        return np.concatenate([summary, loc_data]) 
+        #return np.concatenate([summary, loc_data]) 
 
     def step(self) -> None:
         """Method that advances one step through the simulator"""

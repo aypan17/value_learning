@@ -21,6 +21,7 @@ from flow.utils.registry import make_create_env
 
 import numpy as np
 import wandb
+import neptune.new as neptune
 
 # Callbacks
 # Custom state can be stored for the episode in the info["episode"].user_data dict
@@ -37,9 +38,18 @@ def on_episode_step(info):
 
     rew = 0
     vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
+
     if all(vel > -100):
-        rew += REWARD_REGISTRY['vel'](env, actions)
-        rew += 20 * REWARD_REGISTRY['accel'](env, actions)
+        num_rl = env.k.vehicle.num_rl_vehicles
+        lane_change_acts = np.abs(np.round(actions[1::2])[:num_rl])
+        rew += REWARD_REGISTRY['desired_vel'](env, actions) 
+        rew += 0.1 * REWARD_REGISTRY['forward'](env, actions) 
+        rew += REWARD_REGISTRY['lane_change_bool'](env, actions)
+
+    
+    #if all(vel > -100):
+    #    rew += REWARD_REGISTRY['vel'](env, actions)
+    #    rew += 20 * REWARD_REGISTRY['accel'](env, actions)
 
     # reward average velocity
     episode.user_data["true_reward"].append(rew)
@@ -61,11 +71,15 @@ def on_episode_step_multi(info):
 
 def on_episode_end(info):
     episode = info["episode"]
+    #print(episode.agent_rewards)
+    #print(episode.total_reward)
     sum_rew = np.sum(episode.user_data["true_reward"])
     episode.custom_metrics["true_reward"] = sum_rew
 
 def on_train_result(info):
     pass
+    #print("trainer.train() result: {} -> {} episodes".format(
+    #    info["trainer"].__name__, info["result"]["episodes_this_iter"]))
 
 def on_postprocess_traj(info):
     pass
@@ -164,7 +178,7 @@ def setup_exps_rllib(flow_params,
 
     config["seed"] = 17
 
-    config["num_workers"] = n_cpus - 1
+    config["num_workers"] = 3 #n_cpus - 1
     config["train_batch_size"] = horizon * n_rollouts
     config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
     config["gamma"] = 0.999  # discount rate
@@ -172,7 +186,7 @@ def setup_exps_rllib(flow_params,
     config["model"].update({"fcnet_hiddens": fcnet_hiddens}) #[32, 32, 32]
     config["use_gae"] = True
     config["lambda"] = 0.97
-    config["kl_target"] = 0.02
+    config["kl_target"] = tune.grid_search([0.02, 0.03])
     config["vf_clip_param"] = 10000
     config["num_sgd_iter"] = 10
     config["horizon"] = horizon
@@ -194,7 +208,7 @@ def setup_exps_rllib(flow_params,
 
     config['callbacks'] = {
                     "on_episode_start": on_episode_start,
-                    "on_episode_step": on_episode_step_multi if cfg.multi else on_episode_step,
+                    "on_episode_step": on_episode_step,#_multi if cfg.multi else on_episode_step,
                     "on_episode_end": on_episode_end,
                 }
 
@@ -210,16 +224,17 @@ def train(flags):
     import ray
     from ray.tune import run_experiments
 
-    config = wandb.config
+    #config = flags
+    #config = wandb.config
     # Import relevant information from the exp_config script.
-    if config.multi:
+    if flags.multi:
         module = __import__(
-            "flow_cfg.exp_configs.rl.multiagent", fromlist=[config.exp_config])
+            "flow_cfg.exp_configs.rl.multiagent", fromlist=[flags.exp_config])
     else:
         module = __import__(
-            "flow_cfg.exp_configs.rl.singleagent", fromlist=[config.exp_config])
+            "flow_cfg.exp_configs.rl.singleagent", fromlist=[flags.exp_config])
 
-    submodule = getattr(module, config.exp_config)
+    submodule = getattr(module, flags.exp_config)
 
     flow_params = submodule.flow_params
     flow_params["exp_tag"] = sys.argv[2]
@@ -235,6 +250,10 @@ def train(flags):
     policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
     policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
     policies_to_train = getattr(submodule, "policies_to_train", None)
+
+    model_name = flags.exp_config.split("_")[1] + "_" + "_".join([r+','+str(w) for r, w in reward_specification])
+    def name(x):
+        return model_name
 
     alg_run, gym_name, config = setup_exps_rllib(
         flow_params, n_cpus, n_rollouts, reward_specification,
@@ -254,6 +273,7 @@ def train(flags):
         "stop": {
             "training_iteration": flags.num_steps,
         },
+        "trial_name_creator": name,
     }
 
     if flags.checkpoint_path is not None:
@@ -266,7 +286,11 @@ def main(args):
     # Parse script-level arguments (not including package arguments).
     flags = parse_args(args)
     config = flags.__dict__
-    wandb.init(entity="aypan17", project="value-learning", group="traffic-merge", config=config, sync_tensorboard=True)
+    if flags.test:
+        pass
+        #wandb.init(entity="aypan17", project="test-space", config=config, settings=wandb.Settings(start_method="thread"))
+    else:
+        wandb.init(entity="aypan17", project="value-learning", group="traffic-bottleneck", config=config, sync_tensorboard=True)
     train(flags)
 
 

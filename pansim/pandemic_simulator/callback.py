@@ -10,13 +10,13 @@ class WandbCallback(BaseCallback):
 
     :param verbose: (int) Verbosity level 0: not output 1: info 2: debug
     """
-    def __init__(self, viz=None, true_viz=None, eval_freq=10, multiprocessing=False, verbose=0):
+    def __init__(self, name="", viz=None, eval_freq=10, multiprocessing=False, verbose=0):
         
+        self.name = name
         self.viz = viz
-        self.true_viz = true_viz
         self.eval_freq = eval_freq
         self.multi = multiprocessing
-
+        self.n_rollouts=0
         self.record = False
         super(WandbCallback, self).__init__(verbose)
         # Those variables will be accessible in the callback
@@ -49,11 +49,15 @@ class WandbCallback(BaseCallback):
         This event is triggered before collecting new samples.
         """
         self.episode_rewards = []
+        self.episode_reward_std = []
         self.episode_true_rewards = []
+        self.episode_true_reward_std = []
         self.episode_infection_data = np.array([[0, 0, 0, 0, 0]])
         self.episode_threshold = []
 
-        self.record = (self.n_calls % self.eval_freq == 0)
+        self.n_rollouts += 1
+        self.record = (self.n_rollouts % self.eval_freq == 0)
+        
 
     def _on_step(self) -> bool:
         """
@@ -74,23 +78,26 @@ class WandbCallback(BaseCallback):
             threshold_data += np.squeeze(obs.infection_above_threshold)
 
         self.episode_rewards.append(np.mean(rew))
+        self.episode_reward_std.append(np.std(rew))
         self.episode_true_rewards.append(np.mean(true_rew))
+        self.episode_true_reward_std.append(np.std(true_rew))
         self.episode_infection_data = np.concatenate([self.episode_infection_data, infection_data / len(list_obs)])
         self.episode_threshold.append(np.sum(threshold_data) / len(list_obs))
         
         if self.record:
-            self.viz.record((list_obs[0], rew[0]))
-            self.true_viz.record((list_obs[0], true_rew[0]))
+            self.viz.record((list_obs[0], rew[0], true_rew[0]))
         return True
 
     def _on_rollout_end(self) -> None:
         """
         This event is triggered before updating the policy.
         """
-        infection_summary = np.mean(self.episode_infection_data, axis=0)
+        infection_summary = np.sum(self.episode_infection_data, axis=0)
         n_ppl = np.sum(self.episode_infection_data[1])
-        wandb.log({"reward": np.mean(self.episode_rewards), 
-                   "true_reward": np.mean(self.episode_true_rewards),
+        wandb.log({"reward": np.sum(self.episode_rewards),
+                   "reward_std": np.mean(self.episode_reward_std), 
+                   "true_reward": np.sum(self.episode_true_rewards),
+                   "true_reward_std": np.mean(self.episode_true_reward_std),
                    "proportion_critical": infection_summary[0] / n_ppl,
                    "proportion_dead": infection_summary[1] / n_ppl,
                    "proportion_infected": infection_summary[2] / n_ppl,
@@ -99,11 +106,11 @@ class WandbCallback(BaseCallback):
                    "time_over_threshold": np.mean(self.episode_threshold),
                    })
         if self.record:
-            self.viz.plot(epoch=self.n_calls)
-            self.true_viz.plot(epoch=self.n_calls, is_true=True)
+            self.viz.plot(epoch=self.n_rollouts)
+            self.model.save(f"pandemic_policy/{self.name}")
             self.viz.reset()
-            self.true_viz.reset()
-        print(f"{self.n_calls} epochs completed")
+            self.record = False
+        print(f"{self.n_rollouts} epochs completed")
 
 
     def _on_training_end(self) -> None:
