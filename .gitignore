@@ -157,6 +157,7 @@ fin_results/
 flow/debug/
 tensorboard_log/
 pandemic_policy/
+.neptune/
 
 # SLURM
 slurm*.out
