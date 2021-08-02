@@ -75,7 +75,7 @@ DEPTH=$6
 CONFIG=$7
 
 if [ "${EXP}" = "test" ]; then
-    python3 -u traffic_proxy.py singleagent_bottleneck "test" desired_vel,forward,lane_change_bool 1,0.1,1 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
+    python3 -u traffic_proxy.py singleagent_traffic_light_grid "test" delay,still 1,0.2 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
     exit 0 
 fi
 

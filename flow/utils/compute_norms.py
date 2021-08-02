@@ -19,6 +19,8 @@ import os
 import sys
 import time
 
+import seaborn
+
 import matplotlib.pyplot as plt
 
 import ray
@@ -120,6 +122,29 @@ def rollout(env, agent, args, multiagent=False):
     print(f'==== Finished epoch ====')
     return np.mean(np.array([np.mean(rew) for _, rew in rets.items()])) if multiagent else np.mean(rets)
 
+def plot(args, l_1, l_2, lc, rew, e):
+    color = seaborn.color_palette(palette="crest", as_cmap=True)
+
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True)
+    ax1.set_title("Max L1 norm")
+    ax2.set_title("Max L2 norm")
+    ax3.set_title("Max Lipschitz Constant")
+    for i in range(len(e)):
+        if np.isnan(rew[i]):
+            continue
+        c = color(int(e[i])/5000)
+        ax1.scatter(l_1[i], rew[i], c=[c])
+        ax2.scatter(l_2[i], rew[i], c=[c])
+        ax3.scatter(lc[i], rew[i], c=[c])
+
+    #for i, txt in enumerate(epochs):
+    #    ax1.annotate(txt, (l_1[i], rew[i]))
+    #    ax2.annotate(txt, (l_2[i], rew[i]))
+
+    fig.suptitle(f'Eta value of {args.results}. True value of 20')
+    plt.savefig(args.save_path)
+    plt.show()
+
 def compute_norms(args):
     results = args.results if args.results[-1] != '/' \
         else args.results[:-1]
@@ -128,9 +153,10 @@ def compute_norms(args):
     l_2 = []
     lc = []
     rew = []
+    e = []
     epochs = [str(e) for e in range(args.low, args.high+1, args.skip)]
 
-    for result_dir in open(results, 'r'):
+    for result_dir in open(results+".txt", 'r'):
         result_dir = result_dir[:-1].rstrip() if result_dir[-1] == '/' else result_dir.rstrip()
 
         try:
@@ -232,28 +258,19 @@ def compute_norms(args):
             l_2.append(max(np.max(kernel_norm2), np.max(bias_norm2)))
             lc.append(np.prod(sv))
             rew.append(rollout(env, agent, args, multiagent=multiagent))
+            e.append(epoch)
 
         # terminate the environment
         env.unwrapped.terminate()
 
     print(l_1)
     print(l_2)
+    print(lc)
     print(rew)
+    print(e)
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True)
-    ax1.set_title("Max L1 norm")
-    ax2.set_title("Max L2 norm")
-    ax3.set_title("Lipschitz Constant")
-    ax1.scatter(l_1, rew)
-    ax2.scatter(l_2, rew)
-    ax3.scatter(lc, rew)
-
-    #for i, txt in enumerate(epochs):
-    #    ax1.annotate(txt, (l_1[i], rew[i]))
-    #    ax2.annotate(txt, (l_2[i], rew[i]))
-
-    #plt.savefig(args.save_path)
-    plt.show()
+    plot(args, l_1, l_2, lc, rew, e)
+    
 
     
 
@@ -297,6 +314,7 @@ def create_parser():
     parser.add_argument('--low', type=int, default=500, help='the epoch to start plotting from')
     parser.add_argument('--high', type=int, default=5000, help='the epoch to stop plotting from')
     parser.add_argument('--skip', type=int, default=500, help='the epoch to stop plotting at')
+    parser.add_argument('--save_path', type=str, default="f.png", help="savepath of figure")
 
     return parser
 

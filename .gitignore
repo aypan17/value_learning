@@ -158,6 +158,7 @@ flow/debug/
 tensorboard_log/
 pandemic_policy/
 .neptune/
+*.png
 
 # SLURM
 slurm*.out

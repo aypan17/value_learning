@@ -10,12 +10,13 @@ class WandbCallback(BaseCallback):
 
     :param verbose: (int) Verbosity level 0: not output 1: info 2: debug
     """
-    def __init__(self, name="", viz=None, eval_freq=10, multiprocessing=False, verbose=0):
+    def __init__(self, name="", gamma=0.99, viz=None, eval_freq=10, multiprocessing=False, verbose=0):
         
         self.name = name
         self.viz = viz
         self.eval_freq = eval_freq
         self.multi = multiprocessing
+        self.gamma = gamma
         self.n_rollouts=0
         self.record = False
         super(WandbCallback, self).__init__(verbose)
@@ -93,10 +94,14 @@ class WandbCallback(BaseCallback):
         This event is triggered before updating the policy.
         """
         infection_summary = np.sum(self.episode_infection_data, axis=0)
+        horizon = len(self.episode_rewards)
+        true_w = np.geomspace(1, 0.99**(horizon-1), num=horizon)
+        proxy_w = np.geomspace(1, self.gamma**(horizon-1), num=horizon)
         n_ppl = np.sum(self.episode_infection_data[1])
-        wandb.log({"reward": np.sum(self.episode_rewards),
+
+        wandb.log({"reward": np.dot(proxy_w, np.array(self.episode_rewards)),
                    "reward_std": np.mean(self.episode_reward_std), 
-                   "true_reward": np.sum(self.episode_true_rewards),
+                   "true_reward": np.dot(true_w, np.array(self.episode_true_rewards)),
                    "true_reward_std": np.mean(self.episode_true_reward_std),
                    "proportion_critical": infection_summary[0] / n_ppl,
                    "proportion_dead": infection_summary[1] / n_ppl,
@@ -106,7 +111,7 @@ class WandbCallback(BaseCallback):
                    "time_over_threshold": np.mean(self.episode_threshold),
                    })
         if self.record:
-            self.viz.plot(epoch=self.n_rollouts)
+            self.viz.plot(name=self.name, epoch=self.n_rollouts)
             self.model.save(f"pandemic_policy/{self.name}")
             self.viz.reset()
             self.record = False

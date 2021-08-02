@@ -43,6 +43,7 @@ class PandemicGymEnv(gym.Env):
                  obs_history_size: int = 1,
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
+                 constrain: bool = False
                  ):
         """
         :param pandemic_sim: Pandemic simulator instance
@@ -72,7 +73,11 @@ class PandemicGymEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(len(pandemic_sim.poll()),)
         )
-        self.action_space = gym.spaces.Discrete(len(self._stage_to_regulation))
+        self.constrain = constrain 
+        if self.constrain:
+            self.action_space = gym.spaces.Discrete(3) 
+        else:
+            self.action_space = gym.spaces.Discrete(len(self._stage_to_regulation))
 
     @classmethod
     def from_config(cls: Type['PandemicGymEnv'],
@@ -152,10 +157,17 @@ class PandemicGymEnv(gym.Env):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
         # execute the action if different from the current stage
-        if action != self._last_observation.stage[-1, 0, 0]:  # stage has a TNC layout
-            regulation = self._stage_to_regulation[action]
+        if self.constrain:
+            prev_stage = self._last_observation.stage[-1, 0, 0]
+            regulation = self._stage_to_regulation[int(min(max(prev_stage + action - 1, 0), 4))]
             self._pandemic_sim.impose_regulation(regulation=regulation)
 
+        else:
+            if action != self._last_observation.stage[-1, 0, 0]:  # stage has a TNC layout
+                regulation = self._stage_to_regulation[action]
+                self._pandemic_sim.impose_regulation(regulation=regulation)
+
+        
         # update the sim until next regulation interval trigger and construct obs from state hist
         obs = PandemicObservation.create_empty(
             history_size=self._obs_history_size,
@@ -211,6 +223,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  obs_history_size: int = 1,
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
+                 constrain: bool = False,
                  ):
 
         super().__init__(pandemic_sim,
@@ -221,6 +234,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  obs_history_size,
                  sim_steps_per_regulation,
                  non_essential_business_location_ids,
+                 constrain
                 )
         
 
@@ -237,6 +251,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                     beta: float = 1,
                     gamma: float = 0.1,
                     delta: float = 0.02,
+                    constrain: bool = False
                     ) -> 'PandemicPolicyGymEnv':
         """
         Creates an instance using config
@@ -294,7 +309,8 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                               true_reward_fn=true_reward_fn,
                               done_fn=done_fn,
                               obs_history_size=obs_history_size,
-                              non_essential_business_location_ids=non_essential_business_location_ids)
+                              non_essential_business_location_ids=non_essential_business_location_ids,
+                              constrain=constrain)
 
     def get_single_env(self):
         def get_self():

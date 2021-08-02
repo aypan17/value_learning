@@ -58,8 +58,8 @@ austin_regulations: List[PandemicRegulation] = [
                            School: {'lock': True},
                            HairSalon: {'lock': True},
                            RetailStore: {'lock': False},
-                           Restaurant: {'lock': True},
-                           Bar: {'lock': True},
+                           Restaurant: {'lock': False},
+                           Bar: {'lock': False},
                        },
                        stage=3),
     PandemicRegulation(stay_home_if_sick=True,
@@ -72,8 +72,8 @@ austin_regulations: List[PandemicRegulation] = [
                            School: {'lock': True},
                            HairSalon: {'lock': True},
                            RetailStore: {'lock': True},
-                           Restaurant: {'lock': True},
-                           Bar: {'lock': True},
+                           Restaurant: {'lock': False},
+                           Bar: {'lock': False},
                        },
                        stage=4)
 ]

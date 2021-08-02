@@ -178,7 +178,7 @@ def setup_exps_rllib(flow_params,
 
     config["seed"] = 17
 
-    config["num_workers"] = 3 #n_cpus - 1
+    config["num_workers"] = 6 #n_cpus - 1
     config["train_batch_size"] = horizon * n_rollouts
     config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
     config["gamma"] = 0.999  # discount rate
@@ -186,7 +186,7 @@ def setup_exps_rllib(flow_params,
     config["model"].update({"fcnet_hiddens": fcnet_hiddens}) #[32, 32, 32]
     config["use_gae"] = True
     config["lambda"] = 0.97
-    config["kl_target"] = tune.grid_search([0.02, 0.03])
+    config["kl_target"] = 0.02
     config["vf_clip_param"] = 10000
     config["num_sgd_iter"] = 10
     config["horizon"] = horizon

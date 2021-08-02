@@ -488,8 +488,11 @@ def forward_progress(env, rl_actions):
     rl_vel = env.k.vehicle.get_speed(env.k.vehicle.get_rl_ids())
     return np.linalg.norm(rl_vel, 1)
 
-def mean_delay(env, rl_actions):
-    return min_delay_unscaled(env)
+def penalize_mean_delay(env, rl_actions):
+    return -min_delay_unscaled(env)
+
+def penalize_still(env, rl_actions):
+    return penalize_standstill(env)
 
 def penalize_headway(env, rl_actions):
     cost = 0
@@ -540,8 +543,8 @@ REWARD_REGISTRY = {
     "out": outflow,
     "forward_progress": forward_progress,
     "forward": forward_progress,
-    "min_delay": mean_delay,
-    "delay": mean_delay,
+    "min_delay": penalize_mean_delay,
+    "delay": penalize_mean_delay,
     "headway": penalize_headway,
     "accel": penalize_accel,
     "lane_change": penalize_lane_change,
@@ -551,4 +554,6 @@ REWARD_REGISTRY = {
     "light_change": penalize_light_change,
     "light": penalize_light_change,
     "cars": penalize_cars,
+    "standstill": penalize_still,
+    "still": penalize_still,
 }

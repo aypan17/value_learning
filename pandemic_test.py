@@ -1,5 +1,7 @@
 from tqdm import trange
 
+import torch
+
 import time
 import numpy as np
 
@@ -10,24 +12,26 @@ from pandemic_simulator.callback import WandbCallback
 import sys
 import wandb
 
+GAMMA = float(sys.argv[5])
+
 def make_cfg():
-    #return ps.sh.small_town_config
-    sim_config = ps.env.PandemicSimConfig(
-        num_persons=500,
-        location_configs=[
-            ps.env.LocationConfig(ps.env.Home, num=150),
-            ps.env.LocationConfig(ps.env.GroceryStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
-            ps.env.LocationConfig(ps.env.Office, num=2, num_assignees=150, state_opts=dict(visitor_capacity=0)),
-            ps.env.LocationConfig(ps.env.School, num=10, num_assignees=2, state_opts=dict(visitor_capacity=30)),
-            ps.env.LocationConfig(ps.env.Hospital, num=1, num_assignees=15, state_opts=dict(patient_capacity=5)),
-            ps.env.LocationConfig(ps.env.RetailStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
-            ps.env.LocationConfig(ps.env.HairSalon, num=2, num_assignees=3, state_opts=dict(visitor_capacity=5)),
-            ps.env.LocationConfig(ps.env.Restaurant, num=1, num_assignees=6, state_opts=dict(visitor_capacity=30)),
-            ps.env.LocationConfig(ps.env.Bar, num=1, num_assignees=3, state_opts=dict(visitor_capacity=30))
-        ],
-        person_routine_assignment=ps.sh.DefaultPersonRoutineAssignment()
-    )
-    return sim_config
+    return ps.sh.small_town_config
+    # sim_config = ps.env.PandemicSimConfig(
+    #     num_persons=500,
+    #     location_configs=[
+    #         ps.env.LocationConfig(ps.env.Home, num=150),
+    #         ps.env.LocationConfig(ps.env.GroceryStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
+    #         ps.env.LocationConfig(ps.env.Office, num=2, num_assignees=150, state_opts=dict(visitor_capacity=0)),
+    #         ps.env.LocationConfig(ps.env.School, num=10, num_assignees=2, state_opts=dict(visitor_capacity=30)),
+    #         ps.env.LocationConfig(ps.env.Hospital, num=1, num_assignees=15, state_opts=dict(patient_capacity=5)),
+    #         ps.env.LocationConfig(ps.env.RetailStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
+    #         ps.env.LocationConfig(ps.env.HairSalon, num=2, num_assignees=3, state_opts=dict(visitor_capacity=5)),
+    #         ps.env.LocationConfig(ps.env.Restaurant, num=1, num_assignees=6, state_opts=dict(visitor_capacity=30)),
+    #         ps.env.LocationConfig(ps.env.Bar, num=1, num_assignees=3, state_opts=dict(visitor_capacity=30))
+    #     ],
+    #     person_routine_assignment=ps.sh.DefaultPersonRoutineAssignment()
+    # )
+    # return sim_config
 
 def make_reg():
     return ps.sh.austin_regulations
@@ -42,18 +46,28 @@ def make_model(env):
     agent = ps.model.StageModel(env = env)
 
     # from torch.nn import Softsign, ReLU
-    ppo_params ={'n_steps': 128, 
+    ppo_params = {'n_steps': 128, 
                  'ent_coef': 0.01, 
                  'learning_rate': 0.0001, 
                  'batch_size': 64,  
-                'gamma': 0.99}
+                'gamma': GAMMA}
 
-    d_model = int(sys.argv[6])
-    n_layers = int(sys.argv[7])
+    sac_params = {
+        "batch_size": 64,
+        "buffer_size": 100000,
+        "learning_rate": 0.0001,
+        "learning_starts": 100,
+        "ent_coef": "auto_0.01",
+        "gamma": GAMMA
+    }
+
+    d_model = int(sys.argv[7])
+    n_layers = int(sys.argv[8])
     net_arch = [d_model] * n_layers if n_layers != 0 else []
 
     policy_kwargs = {
         "net_arch": [dict(pi=net_arch, vf=net_arch)], 
+        #"activation_fn": torch.nn.ReLU
     }
 
     model = agent.get_model("ppo",  
@@ -64,7 +78,7 @@ def make_model(env):
 
 def train():
     cfg = wandb.config
-    n_cpus = int(sys.argv[8])
+    n_cpus = int(sys.argv[9])
     ps.init_globals(seed=0)
     # Loop
     # Make regulations
@@ -93,13 +107,14 @@ def train():
             sim_config=sim_config, 
             pandemic_regulations=regulations, 
             done_fn=done_fn,
-            reward_fn=reward_fn
+            reward_fn=reward_fn,
+            constrain=True
         )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
 
     model = make_model(env)
     print("Running model")
-    model.learn(total_timesteps = 2048 * 100, callback = WandbCallback(name=sys.argv[1], viz=viz, multiprocessing=(n_cpus>1)))
+    model.learn(total_timesteps = 2048 * 500, callback = WandbCallback(name=sys.argv[1], viz=viz, multiprocessing=(n_cpus>1)))
     return model
 
 def main():

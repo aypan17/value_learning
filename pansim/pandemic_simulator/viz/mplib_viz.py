@@ -148,7 +148,7 @@ class BaseMatplotLibViz(PandemicViz):
                     textcoords='offset points', xycoords='axes fraction',
                     ha='center', va='center', size=14)
 
-    def plot(self, epoch=None, savedir=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
+    def plot(self, epoch=None, name=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
         if plots_to_show:
             fn_names = [nm for nm in plots_to_show if ismethod(getattr(self, 'plot_' + nm))]
         else:
@@ -172,7 +172,7 @@ class BaseMatplotLibViz(PandemicViz):
             self.annotate_plot(ax, plot_ref_labels[ax_i])
         plt.tight_layout()
         if epoch is not None:
-            savedir = str(int(epoch)) + "_" + savedir
+            savedir = str(int(epoch)) + "_" + name
         plt.savefig(f"pandemic_policy/{savedir}")
         #plt.show()
 
