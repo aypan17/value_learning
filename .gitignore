@@ -151,14 +151,15 @@ Thumbs.db
 
 # Log files
 wandb/
-/wandb
-/fin_results
 fin_results/
 flow/debug/
 tensorboard_log/
 pandemic_policy/
+pan_log/
+glucose*/
 .neptune/
 *.png
+*.txt
 
 # SLURM
 slurm*.out

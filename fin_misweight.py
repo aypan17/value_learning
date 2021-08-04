@@ -84,13 +84,13 @@ def parse_args(args):
 
 # Policy args
     parser.add_argument(
-        '--num_steps', type=int, default=5000000,
+        '--num_steps', type=int, default=1024*100,
         help='how many total steps to perform learning over')
     parser.add_argument(
         '--eval_freq', type=int, default=500,
         help='how frequently to evaluate')
     parser.add_argument(
-        '--rollout_size', type=int, default=1024,
+        '--rollout_size', type=int, default=128,
         help='how many steps are in a training batch.')
     parser.add_argument(
         '--ent', type=float, default=0.01,
@@ -99,7 +99,7 @@ def parse_args(args):
         '--bs', type=int, default=1024,
         help='batch size')
     parser.add_argument(
-        '--lr', type=float, default=0.000005,
+        '--lr', type=float, default=0.0001,
         help='the learning rate')
     parser.add_argument(
         '--gamma', type=float, default=0.99,
@@ -108,7 +108,7 @@ def parse_args(args):
         '--d_model', type=int, default=1024,
         help='hidden dimension of each FC layer')
     parser.add_argument(
-        '--num_layers', type=int, default=5,
+        '--n_layers', type=int, default=5,
         help='number of hidden layers in model')
     parser.add_argument(
         '--save_path', type=str, default=datetime.now().strftime("%m-%d-%Y-%H:%M:%S"),
@@ -201,7 +201,7 @@ def make_model(env_train):
 
 	policy_kwargs = {
 	#	  "activation_fn": ReLU,
-		"net_arch": [cfg.d_model] * cfg.num_layers#[1024, 1024,1024, 1024,  1024], 
+		"net_arch": [cfg.d_model] * cfg.n_layers#[1024, 1024,1024, 1024,  1024], 
 	#	  "squash_output": True
 	}
 
@@ -221,7 +221,7 @@ def train(model, env_trade):
 			tb_log_name = 'test',
 			n_eval_episodes = 1,
 			callback = WandbCallback())
-	model.save("different.model")
+	#model.save("different.model")
 	return model
 
 

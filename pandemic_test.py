@@ -8,11 +8,15 @@ import numpy as np
 import pandemic_simulator as ps
 from pandemic_simulator.environment.reward import RewardFunction, SumReward, RewardFunctionFactory, RewardFunctionType
 from pandemic_simulator.environment.interfaces import InfectionSummary
-from pandemic_simulator.callback import WandbCallback
+from pandemic_simulator.callback import WandbCallback, SacdCallback
 import sys
 import wandb
 
-GAMMA = float(sys.argv[5])
+import argparse
+
+from sacd.agent import SacdAgent, SharedSacdAgent
+
+GAMMA = float(sys.argv[6])
 
 def make_cfg():
     return ps.sh.small_town_config
@@ -76,14 +80,10 @@ def make_model(env):
 
     return model
 
-def train():
+def init(args):
     cfg = wandb.config
-    n_cpus = int(sys.argv[9])
+    n_cpus = args.n_cpus
     ps.init_globals(seed=0)
-    # Loop
-    # Make regulations
-    # Run
-    # Update gradients
     sim_config = make_cfg()
     regulations = make_reg()
     viz = make_viz(sim_config)
@@ -111,24 +111,69 @@ def train():
             constrain=True
         )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
+    return env, gym.get_single_env()
 
+def train(env, test_env, args):
     model = make_model(env)
     print("Running model")
-    model.learn(total_timesteps = 2048 * 500, callback = WandbCallback(name=sys.argv[1], viz=viz, multiprocessing=(n_cpus>1)))
-    return model
+    model.learn(total_timesteps = 2048 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+    return model    
+
+def train_sacd(env, test_env, args):
+    cfg = wandb.config
+    # Create the agent.
+    Agent = SacdAgent if not args.shared else SharedSacdAgent
+    agent = Agent(
+        env=env, test_env=test_env, log_dir=args.log_dir, cuda=args.cuda,
+        seed=args.seed, **cfg)
+    agent.run(callback=SacdCallback(name=sys.argv[1], gamma=GAMMA))
 
 def main():
 
-    config = {}
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--shared', action='store_true')
+    parser.add_argument('--sacd', action='store_true')
+    parser.add_argument('--cuda', action='store_true')
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--n_cpus', type=int, default=1)
+    parser.add_argument('--log_dir', type=str, default="pan_log")
+    args = parser.parse_known_args(sys.argv[1:])[0]
+
+    config = {
+        'memory_size': 300000,
+        'gamma': GAMMA,
+        'multi_step': 1,
+        'target_entropy_ratio': 0.98,
+        'start_steps': 20000,
+        'update_interval': 4,
+        'target_update_interval': 8000,
+        'use_per': False,
+        'dueling_net': False,
+        'num_steps': 300000,
+        'num_eval_steps': 128,
+        'max_episode_steps': 128,
+        'log_interval': 1000000,
+        'eval_interval': 10000000,
+        'batch_size': 64,
+        'd_model': 128, 
+        'actor_lr': 0.0001, 
+        'critic_lr': 0.001
+    }
 
     wandb.init(
-      project="value-learning",
+      project="test-space",
       group="covid",
       entity="aypan17",
       config=config,
       sync_tensorboard=True
     )
-    train()
+    if args.sacd:
+        args.n_cpus=1
+        train_env, test_env = init(args)
+        train_sacd(train_env, test_env, args)
+    else:
+        train_env, test_env = init(args)
+        train(train_env, test_env, args)
 
 
 if __name__ == '__main__':

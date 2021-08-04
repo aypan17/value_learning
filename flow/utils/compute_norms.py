@@ -20,7 +20,7 @@ import sys
 import time
 
 import seaborn
-
+import scipy
 import matplotlib.pyplot as plt
 
 import ray
@@ -122,154 +122,184 @@ def rollout(env, agent, args, multiagent=False):
     print(f'==== Finished epoch ====')
     return np.mean(np.array([np.mean(rew) for _, rew in rets.items()])) if multiagent else np.mean(rets)
 
-def plot(args, l_1, l_2, lc, rew, e):
+def plot(args, l_1, l_2, lc, p2r, rew, e):
     color = seaborn.color_palette(palette="crest", as_cmap=True)
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True)
+    fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1, 5, sharey=True)
     ax1.set_title("Max L1 norm")
     ax2.set_title("Max L2 norm")
     ax3.set_title("Max Lipschitz Constant")
+    ax4.set_title("Min reward vs. params")
+    ax5.set_title("Last reward vs. params")
     for i in range(len(e)):
-        if np.isnan(rew[i]):
+        if np.isnan(rew[i]) or np.isnan(lc[i]):
             continue
         c = color(int(e[i])/5000)
         ax1.scatter(l_1[i], rew[i], c=[c])
         ax2.scatter(l_2[i], rew[i], c=[c])
         ax3.scatter(lc[i], rew[i], c=[c])
 
-    #for i, txt in enumerate(epochs):
-    #    ax1.annotate(txt, (l_1[i], rew[i]))
-    #    ax2.annotate(txt, (l_2[i], rew[i]))
+    c = color(1)
+    for p, (min_r, fin_r) in p2r.items():
+        ax4.scatter(p, min_r, c='blue')
+        ax5.scatter(p, fin_r, c='blue')
 
-    fig.suptitle(f'Eta value of {args.results}. True value of 20')
-    plt.savefig(args.save_path)
+    name = args.results.split("/")[-1]
+    fig.suptitle(f'{name}')
+    plt.savefig(name+".png")
     plt.show()
 
 def compute_norms(args):
     results = args.results if args.results[-1] != '/' \
         else args.results[:-1]
 
+    params = []
     l_1 = []
     l_2 = []
     lc = []
     rew = []
     e = []
-    epochs = [str(e) for e in range(args.low, args.high+1, args.skip)]
+    m = []
+    epochs = [str(i) for i in range(args.low, args.high+1, args.skip)]
+    print(epochs)
 
-    for result_dir in open(results+".txt", 'r'):
-        result_dir = result_dir[:-1].rstrip() if result_dir[-1] == '/' else result_dir.rstrip()
+    for directory in os.listdir(results):
+        misspecification = float(directory.split("_")[-1])
+        print(misspecification)
+        for d in os.listdir(results+'/'+directory):
+        #result_dir = results+'/'+directory if results[-1] != '/' else results+directory #result_dir[:-1].rstrip() if result_dir[-1] == '/' else result_dir.rstrip()
+            result_dir = results + '/' + directory + '/' + d
+            print(result_dir)
+            # try:
+            #     config = get_rllib_config(result_dir)
+            # except:
+            #     print(f"Loading {result_dir} config failed")
+            #     continue
 
-        try:
-            config = get_rllib_config(result_dir)
-        except:
-            continue
+            # # check if we have a multiagent environment but in a
+            # # backwards compatible way
+            # if config.get('multiagent', {}).get('policies', None):
+            #     multiagent = True
+            #     pkl = get_rllib_pkl(result_dir)
+            #     config['multiagent'] = pkl['multiagent']
+            # else:
+            #     multiagent = False
 
-        # check if we have a multiagent environment but in a
-        # backwards compatible way
-        if config.get('multiagent', {}).get('policies', None):
-            multiagent = True
-            pkl = get_rllib_pkl(result_dir)
-            config['multiagent'] = pkl['multiagent']
+            # # Run on only one cpu for rendering purposes
+            # config['num_workers'] = 0
+
+            # flow_params = get_flow_params(config)
+
+            # # hack for old pkl files
+            # # TODO(ev) remove eventually
+            # sim_params = flow_params['sim']
+            # setattr(sim_params, 'num_clients', 1)
+
+            # # for hacks for old pkl files TODO: remove eventually
+            # if not hasattr(sim_params, 'use_ballistic'):
+            #     sim_params.use_ballistic = False
+
+            # # Determine agent and checkpoint
+            # config_run = config['env_config']['run'] if 'run' in config['env_config'] \
+            #     else None
+            # if args.run and config_run:
+            #     if args.run != config_run:
+            #         print('visualizer_rllib.py: error: run argument '
+            #               + '\'{}\' passed in '.format(args.run)
+            #               + 'differs from the one stored in params.json '
+            #               + '\'{}\''.format(config_run))
+            #         sys.exit(1)
+            # if args.run:
+            #     agent_cls = get_agent_class(args.run)
+            # elif config_run:
+            #     agent_cls = get_agent_class(config_run)
+            # else:
+            #     print('visualizer_rllib.py: error: could not find flow parameter '
+            #           '\'run\' in params.json, '
+            #           'add argument --run to provide the algorithm or model used '
+            #           'to train the results\n e.g. '
+            #           'python ./visualizer_rllib.py /tmp/ray/result_dir 1 --run PPO')
+            #     sys.exit(1)
+
+            # sim_params.restart_instance = True
+            # dir_path = os.path.dirname(os.path.realpath(__file__))
+
+            # # Create and register a gym+rllib env
+            # merge=[('desired_vel', 1), ('accel', 20)]
+            # bottle=[('desired_vel', 1), ('forward', 0.1), ('lane_change_bool', 1)]
+            # outflow=[('outflow', 1)]
+            # create_env, env_name = make_create_env(params=flow_params, reward_specification=merge)
+            # register_env(env_name, create_env)
+
+            # # Start the environment with the gui turned on and a path for the
+            # # emission file
+            # env_params = flow_params['env']
+            # env_params.restart_instance = False
+
+            # # lower the horizon if testing
+            # if args.horizon:
+            #     config['horizon'] = args.horizon
+            #     env_params.horizon = args.horizon
+
+            # # create the agent that will be used to compute the actions
+            # agent = agent_cls(env=env_name, config=config)
+
+            # if hasattr(agent, "local_evaluator") and \
+            #         os.environ.get("TEST_FLAG") != 'True':
+            #     env = agent.local_evaluator.env
+            # else:
+            #     env = gym.make(env_name)
+
+            # # if restart_instance, don't restart here because env.reset will restart later
+            # if not sim_params.restart_instance:
+            #     env.restart_simulation(sim_params=sim_params, render=sim_params.render)
+
+            for epoch in epochs:
+                # checkpoint = result_dir + '/checkpoint_' + epoch
+                # checkpoint = checkpoint + '/checkpoint-' + epoch
+                # if not os.path.isfile(checkpoint):
+                #     break
+                # agent.restore(checkpoint)
+                
+                # weights = [w for _, w in agent.get_weights()['default_policy'].items()]
+                # if len(weights) == 4:
+                #     break
+
+                # sv = np.array([scipy.linalg.svd(w, compute_uv=False, lapack_driver='gesvd')[0] for w in weights[::4]])
+                # kernel_norm1 = [np.linalg.norm(w, ord=1) for w in weights[::4]]
+                # kernel_norm2 = [np.linalg.norm(w, ord=2) for w in weights[::4]]
+                # bias_norm1 = [np.linalg.norm(w, ord=1) for w in weights[1::4]]
+                # bias_norm2 = [np.linalg.norm(w, ord=2) for w in weights[1::4]]
+
+                # params.append(np.sum([np.prod(w.shape) for w in weights[::4]]))
+                # l_1.append(max(np.max(kernel_norm1), np.max(bias_norm1)))
+                # l_2.append(max(np.max(kernel_norm2), np.max(bias_norm2)))
+                # lc.append(np.prod(sv))
+                # rew.append(rollout(env, agent, args, multiagent=multiagent))
+                e.append(epoch)
+                m.append(misspecification)
+
+            # terminate the environment
+            #env.unwrapped.terminate()
+
+    p2r = {}
+    for p, r in zip(params, rew):
+        if p not in p2r:
+            p2r[p] = (r, r)
         else:
-            multiagent = False
+            p2r[p] = (min(p2r[p][0], r), r)
 
-        # Run on only one cpu for rendering purposes
-        config['num_workers'] = 0
-
-        flow_params = get_flow_params(config)
-
-        # hack for old pkl files
-        # TODO(ev) remove eventually
-        sim_params = flow_params['sim']
-        setattr(sim_params, 'num_clients', 1)
-
-        # for hacks for old pkl files TODO: remove eventually
-        if not hasattr(sim_params, 'use_ballistic'):
-            sim_params.use_ballistic = False
-
-        # Determine agent and checkpoint
-        config_run = config['env_config']['run'] if 'run' in config['env_config'] \
-            else None
-        if args.run and config_run:
-            if args.run != config_run:
-                print('visualizer_rllib.py: error: run argument '
-                      + '\'{}\' passed in '.format(args.run)
-                      + 'differs from the one stored in params.json '
-                      + '\'{}\''.format(config_run))
-                sys.exit(1)
-        if args.run:
-            agent_cls = get_agent_class(args.run)
-        elif config_run:
-            agent_cls = get_agent_class(config_run)
-        else:
-            print('visualizer_rllib.py: error: could not find flow parameter '
-                  '\'run\' in params.json, '
-                  'add argument --run to provide the algorithm or model used '
-                  'to train the results\n e.g. '
-                  'python ./visualizer_rllib.py /tmp/ray/result_dir 1 --run PPO')
-            sys.exit(1)
-
-        sim_params.restart_instance = True
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-
-        # Create and register a gym+rllib env
-        create_env, env_name = make_create_env(params=flow_params, reward_specification=[('desired_vel', 1), ('accel', 20)])
-        register_env(env_name, create_env)
-
-        # Start the environment with the gui turned on and a path for the
-        # emission file
-        env_params = flow_params['env']
-        env_params.restart_instance = False
-
-        # lower the horizon if testing
-        if args.horizon:
-            config['horizon'] = args.horizon
-            env_params.horizon = args.horizon
-
-        # create the agent that will be used to compute the actions
-        agent = agent_cls(env=env_name, config=config)
-
-        if hasattr(agent, "local_evaluator") and \
-                os.environ.get("TEST_FLAG") != 'True':
-            env = agent.local_evaluator.env
-        else:
-            env = gym.make(env_name)
-
-        # if restart_instance, don't restart here because env.reset will restart later
-        if not sim_params.restart_instance:
-            env.restart_simulation(sim_params=sim_params, render=sim_params.render)
-
-        
-        for epoch in epochs:
-            checkpoint = result_dir + '/checkpoint_' + epoch
-            checkpoint = checkpoint + '/checkpoint-' + epoch
-            if not os.path.isfile(checkpoint):
-                break
-            agent.restore(checkpoint)
-
-            weights = [w for _, w in agent.get_weights()['default_policy'].items()]
-            sv = np.array([np.linalg.svd(w, compute_uv=False)[0] for w in weights[::4]])
-            kernel_norm1 = [np.linalg.norm(w, ord=1) for w in weights[::4]]
-            kernel_norm2 = [np.linalg.norm(w, ord=2) for w in weights[::4]]
-            bias_norm1 = [np.linalg.norm(w, ord=1) for w in weights[1::4]]
-            bias_norm2 = [np.linalg.norm(w, ord=2) for w in weights[1::4]]
-
-            l_1.append(max(np.max(kernel_norm1), np.max(bias_norm1)))
-            l_2.append(max(np.max(kernel_norm2), np.max(bias_norm2)))
-            lc.append(np.prod(sv))
-            rew.append(rollout(env, agent, args, multiagent=multiagent))
-            e.append(epoch)
-
-        # terminate the environment
-        env.unwrapped.terminate()
-
+    print(m)
+    print(params)
     print(l_1)
     print(l_2)
     print(lc)
     print(rew)
     print(e)
+    print(p2r)
 
-    plot(args, l_1, l_2, lc, rew, e)
+
+    plot(args, l_1, l_2, lc, p2r, rew, e)
     
 
     
@@ -299,7 +329,7 @@ def create_parser():
     parser.add_argument(
         '--num_rollouts',
         type=int,
-        default=3,
+        default=5,
         help='The number of rollouts to visualize.')
     parser.add_argument(
         '--evaluate',

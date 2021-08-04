@@ -505,6 +505,8 @@ def penalize_headway(env, rl_actions):
     return cost 
 
 def penalize_accel(env, rl_actions):
+    if rl_actions is None:
+        return 0
     mean_actions = np.mean(np.abs(np.array(rl_actions)))
     accel_threshold = 0
     return min(0, accel_threshold - mean_actions)
@@ -523,6 +525,8 @@ def penalize_boolean_lane_change(env, rl_actions):
     return -np.sum(lane_change_acts)
 
 def penalize_light_change(env, rl_actions):
+    if rl_actions is None:
+        return 0
     return -np.sum(rl_actions >= 0.5)
 
 def penalize_cars(env, rl_actions):
