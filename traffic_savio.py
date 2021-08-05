@@ -19,65 +19,50 @@ from flow.utils.registry import env_constructor
 from flow.utils.rllib import FlowParamsEncoder, get_flow_params
 from flow.utils.registry import make_create_env
 
+from ray.rllib.agents.callbacks import DefaultCallbacks
+
 import numpy as np
 import wandb
 
 # Callbacks
-# Custom state can be stored for the episode in the info["episode"].user_data dict
-# Custom scalar metrics reported by saving values to the info["episode"].custom_metrics dict
-def on_episode_start(info):
-    episode = info["episode"]
-    episode.user_data["true_reward"] = []
-    episode.user_data["reward"] = []
+class RewardCallback(DefaultCallbacks):
+    def on_episode_start(self, *, worker, base_env, policies, episode, env_index, **kwargs):
+        episode.user_data["true_reward"] = []
+        episode.user_data["reward"] = []
 
-def on_episode_step(info):
-    episode = info["episode"]
-    environment = info["env"]
-    env = environment.vector_env.envs[0]
-    actions = episode.prev_action_for()
+    def on_episode_step(self, *, worker, base_env, episode, env_index, **kwargs):
+        env = base_env.vector_env.envs[0]
+        actions = episode.prev_action_for()
 
-    true_rew = 0
-    vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
-    if all(vel > -100):
-        true_rew += REWARD_REGISTRY['vel'](env, actions)
-        true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
+        true_rew = 0
+        vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
+        if all(vel > -100):
+            true_rew += REWARD_REGISTRY['vel'](env, actions)
+            true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
 
-    # record
-    episode.user_data["true_reward"].append(true_rew)
-    episode.user_data["reward"].append(episode.prev_reward_for())
+        # record
+        episode.user_data["true_reward"].append(true_rew)
+        episode.user_data["reward"].append(episode.prev_reward_for())
 
-def on_episode_step_multi(info):
-    episode = info["episode"]
-    environment = info["env"]
-    env = environment.envs[0]
-    actions = episode.prev_action_for()
+    def on_episode_step_multi(self, *, worker, base_env, policies, episode, env_index, **kwargs):
+        env = base_env.envs[0]
+        actions = episode.prev_action_for()
 
-    true_rew = 0
-    vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
-    if all(vel > -100):
-        true_rew += REWARD_REGISTRY['vel'](env, actions)
-        true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
+        true_rew = 0
+        vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
+        if all(vel > -100):
+            true_rew += REWARD_REGISTRY['vel'](env, actions)
+            true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
 
-    # reward average velocity
-    episode.user_data["true_reward"].append(true_rew)
-    episode.user_data["reward"].append(episode.prev_reward_for())
+        # reward average velocity
+        episode.user_data["true_reward"].append(true_rew)
+        episode.user_data["reward"].append(episode.prev_reward_for())
 
-def on_episode_end(info):
-    episode = info["episode"]
-
-    #model_arch = episode._policies['default_policy'].model.base_model.layers[1:-2:2]
-
-    true_rew = np.sum(episode.user_data["true_reward"])
-    reward = np.sum(episode.user_data["reward"])
-    episode.custom_metrics["true_reward"] = true_rew
-    episode.custom_metrics["reward"] = reward
-    #wandb.log({str(model_arch) : {"true_reward": true_rew, "reward": reward}})
-
-def on_train_result(info):
-    pass
-
-def on_postprocess_traj(info):
-    pass
+    def on_episode_end(self, *, worker, base_env, policies, episode, env_index, **kwargs):
+        true_rew = np.sum(episode.user_data["true_reward"])
+        reward = np.sum(episode.user_data["reward"])
+        episode.custom_metrics["true_reward"] = true_rew
+        episode.custom_metrics["reward"] = reward
 
 
 def parse_args(args):
@@ -103,7 +88,7 @@ def parse_args(args):
     parser.add_argument(
         '--test', action='store_true', help='No wandb')
     parser.add_argument(
-        '--num_cpus', type=int, default=1,
+        '--n_cpus', type=int, default=1,
         help='How many CPUs to use')
     parser.add_argument(
         '--num_steps', type=int, default=5000,
@@ -124,8 +109,8 @@ def parse_args(args):
 
 
 def setup_exps_rllib(flow_params,
-                     n_cpus,
                      n_rollouts,
+                     n_cpus,
                      reward_specification=None,
                      policy_graphs=None,
                      policy_mapping_fn=None,
@@ -136,10 +121,10 @@ def setup_exps_rllib(flow_params,
     ----------
     flow_params : dict
         flow-specific parameters (see flow/utils/registry.py)
-    n_cpus : int
-        number of CPUs to run the experiment over
     n_rollouts : int
         number of rollouts per training iteration
+    n_cpus : int
+        number of cpus 
     policy_graphs : dict, optional
         TODO
     policy_mapping_fn : function, optional
@@ -172,18 +157,26 @@ def setup_exps_rllib(flow_params,
 
     config["seed"] = 17
 
-    config["num_workers"] = 7 #n_cpus - 1
+    if len(sys.argv) > 5:
+        fcnet_hiddens = [int(sys.argv[5])] * int(sys.argv[6])
+        config["num_workers"] = n_cpus - 1
+    else:
+        fcnet_hiddens = tune.grid_search([[8, 8], [32, 32], [64, 64], [128, 128], [256, 256]])
+        config["num_workers"] = (n_cpus // 5) - 1
+    
+
     config["train_batch_size"] = horizon * n_rollouts
     config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
     config["gamma"] = 0.999  # discount rate
-    #fcnet_hiddens = [int(sys.argv[5])] * int(sys.argv[6])
-    config["model"].update({"fcnet_hiddens": tune.grid_search([[8, 8], [32, 32], [64, 64], [128, 128], [256, 256]])}) #[32, 32, 32]
+    config["model"].update({"fcnet_hiddens": fcnet_hiddens}) 
     config["use_gae"] = True
     config["lambda"] = 0.97
     config["kl_target"] = 0.02
     config["vf_clip_param"] = 10000
     config["num_sgd_iter"] = 10
     config["horizon"] = horizon
+    #config["simple_optimizer"] = True
+    config["framework"] = "torch"
 
     # save the flow params for replay
     flow_json = json.dumps(
@@ -200,12 +193,12 @@ def setup_exps_rllib(flow_params,
     if policies_to_train is not None:
         config['multiagent'].update({'policies_to_train': policies_to_train})
 
-    config['callbacks'] = {
-                    "on_episode_start": on_episode_start,
-                    "on_episode_step": on_episode_step,
-                    "on_episode_end": on_episode_end,
-                }
-
+    # config['callbacks'] = {
+    #                 "on_episode_start": on_episode_start,
+    #                 "on_episode_step": on_episode_step,
+    #                 "on_episode_end": on_episode_end,
+    #             }
+    config['callbacks'] = RewardCallback
     create_env, gym_name = make_create_env(params=flow_params, reward_specification=reward_specification)
 
     # Register as rllib env
@@ -237,8 +230,8 @@ def train(flags):
     assert len(rewards) == len(weights)
     reward_specification = [(r, float(w)) for r, w in zip(rewards, weights)]
     
-    n_cpus = 0#int(sys.argv[7])
     n_rollouts = flags.rollout_size
+    n_cpus = flags.n_cpus
     policy_graphs = getattr(submodule, "POLICY_GRAPHS", None)
     policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
     policies_to_train = getattr(submodule, "policies_to_train", None)
@@ -246,7 +239,7 @@ def train(flags):
     ray.init(address=os.environ["ip_head"])
     
     alg_run, gym_name, config = setup_exps_rllib(
-        flow_params, n_cpus, n_rollouts, reward_specification,
+        flow_params, n_rollouts, n_cpus, reward_specification,
         policy_graphs, policy_mapping_fn, policies_to_train)
 
     print(f"Epochs: {flags.num_steps}")
@@ -268,15 +261,16 @@ def train(flags):
         exp_config['restore'] = flags.checkpoint_path
 
     run_experiments({flow_params["exp_tag"]: exp_config})
-    #experiments = convert_to_experiment_list()
-    #ray.tune.run(experiments)
 
 
 def main(args):
     """Perform the training operations."""
     # Parse script-level arguments (not including package arguments).
     flags = parse_args(args)
-    wandb.init(entity="aypan17", project="value-learning", group="traffic-merge", sync_tensorboard=True)
+    if flags.test:
+        wandb.init(entity="aypan17", project="test-space", sync_tensorboard=True)
+    else:
+        wandb.init(entity="aypan17", project="value-learning", group="traffic-merge", sync_tensorboard=True)
     train(flags)
 
 

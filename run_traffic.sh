@@ -7,9 +7,9 @@
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
 # #SBATCH -w shadowfax
-# #SBATCH -p 'high_pre'
+#SBATCH -p 'high_pre'
 
-set -x
+# set -x
 
 # simulate conda activate flow
 export PATH=/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projects/jsteinhardt/aypan/value_learning/flow:/accounts/projects/jsteinhardt/aypan/value_learning/finrl:/accounts/projects/jsteinhardt/aypan/sumo/bin:/usr/local/cuda-11.1/bin:/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projects/jsteinhardt/aypan/value_learning/flow:/accounts/projects/jsteinhardt/aypan/value_learning/finrl:/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/envs/flow/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/condabin:/usr/local/linux/anaconda3.8/bin:/accounts/projects/jsteinhardt/aypan/bin:/bin:/usr/local/linux/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin:/usr/sbin:/snap/bin:/usr/lib/rstudio-server/bin
@@ -44,26 +44,10 @@ echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
-    ray start --head --node-ip-address="$head_node_ip" --redis-port=$port \
+    ray start --head --node-ip-address="$head_node_ip" --port=$port \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --block & # --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
 # __doc_head_ray_end__
 
-# __doc_worker_ray_start__
-# optional, though may be useful in certain versions of Ray < 1.0.
-#sleep 3
-
-# number of nodes other than the head node
-#worker_num=$((SLURM_JOB_NUM_NODES - 1))
-
-#for ((i = 1; i <= worker_num; i++)); do
-#    node_i=${nodes_array[$i]}
-#    echo "Starting WORKER $i at $node_i"
-#    srun --nodes=1 --ntasks=1 -w "$node_i" \
-#        ray start --address "$ip_head" \
-#        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
-#    sleep 5
-#done
-# __doc_worker_ray_end__
 
 # __doc_script_start__
 EXP=$1
@@ -75,18 +59,18 @@ DEPTH=$6
 CONFIG=$7
 
 if [ "${EXP}" = "test" ]; then
-    python3 -u traffic_proxy.py singleagent_merge "test" delay,still 1,0.2 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 2 --rollout_size 1 --horizon 300 --checkpoint 1 --test
+    python3 -u traffic_savio.py singleagent_merge "test" delay,still 1,0.2 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 4 --rollout_size 1 --horizon 300 --checkpoint 1 --test
     exit 0 
 fi
 
 if [ "${CONFIG}" = "ss" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
 elif [ "${CONFIG}" = "sm" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 7 --horizon 300 --multi
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 7 --horizon 300 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
 else
     echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
     exit 0

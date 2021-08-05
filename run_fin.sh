@@ -1,13 +1,12 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=fin
-#SBATCH --cpus-per-task=12
-# #SBATCH --mem-per-cpu=4GB
+#SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
-#SBATCH --gres gpu:0
-#SBATCH -p 'high' #SBATCH -p 'jsteinhardt' # #SBATCH -p 'high'
-# #SBATCH -w smaug-gpu  #SBATCH -w shadowfax
+# #SBATCH --gres gpu:1
+# #SBATCH -p 'jsteinhardt' # #SBATCH -p 'high'
+# #SBATCH -w shadowfax
 
 # set -x 
 
@@ -24,8 +23,10 @@ TVOL=$3
 MORAL=$4
 ENV=$5
 SOCIAL=$6
-NAME=$7
-CONFIG=$8
+WIDTH=$7
+DEPTH=$8
+NAME=$9
+CONFIG=${10}
 
 
 if [ "${MODE}" = "test" ]; then
@@ -34,7 +35,7 @@ if [ "${MODE}" = "test" ]; then
 fi
 
 if [ "${CONFIG}" = "s" ]; then
-	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --num_steps 10240000 --bs 1024 --vol_multiplier $VOL --true_vol_multiplier $TVOL --n_layers=3 --d_model=256
+	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --num_steps 10240000 --bs 1024 --vol_multiplier $VOL --true_vol_multiplier $TVOL --n_layers=$DEPTH --d_model=$WIDTH
 elif [ "${CONFIG}" = "m" ]; then
 	python3 fin_${MODE}.py $MORAL $ENV $SOCIAL "$SLURM_CPUS_PER_TASK" --save_path $NAME --rollout_size 256 --num_steps 1000000 --bs 1024 --vol_multiplier $VOL --true_vol_multiplier $TVOL
 elif [ "${CONFIG}" = "l" ]; then

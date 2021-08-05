@@ -90,16 +90,16 @@ def parse_args(args):
         '--eval_freq', type=int, default=500,
         help='how frequently to evaluate')
     parser.add_argument(
-        '--rollout_size', type=int, default=128,
+        '--rollout_size', type=int, default=1024,
         help='how many steps are in a training batch.')
     parser.add_argument(
-        '--ent', type=float, default=0.01,
+        '--ent', type=float, default=0.0,
         help='the entropy coefficient in PPO')
     parser.add_argument(
         '--bs', type=int, default=1024,
         help='batch size')
     parser.add_argument(
-        '--lr', type=float, default=0.0001,
+        '--lr', type=float, default=0.000005,
         help='the learning rate')
     parser.add_argument(
         '--gamma', type=float, default=0.99,

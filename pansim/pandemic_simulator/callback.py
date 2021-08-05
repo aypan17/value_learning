@@ -69,7 +69,7 @@ class WandbCallback(BaseCallback):
 
         :return: (bool) If the callback returns False, training is aborted early.
         """
-        list_obs = self.training_env.get_attr("observation") if self.multi else [self.training_env.get_attr("observation")]
+        list_obs = self.training_env.get_attr("observation") if self.multi else self.training_env.get_attr("observation")
         rew = self.training_env.get_attr("last_reward")
         true_rew = self.training_env.get_attr("get_true_reward")
         infection_data = np.zeros((1, 5))

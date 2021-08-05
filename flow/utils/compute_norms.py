@@ -24,10 +24,7 @@ import scipy
 import matplotlib.pyplot as plt
 
 import ray
-try:
-    from ray.rllib.agents.agent import get_agent_class
-except ImportError:
-    from ray.rllib.agents.registry import get_agent_class
+from ray.rllib.agents.registry import get_trainer_class
 from ray.tune.registry import register_env
 
 from flow.core.util import emission_to_csv
@@ -164,123 +161,129 @@ def compute_norms(args):
     print(epochs)
 
     for directory in os.listdir(results):
-        misspecification = float(directory.split("_")[-1])
-        print(misspecification)
-        for d in os.listdir(results+'/'+directory):
-        #result_dir = results+'/'+directory if results[-1] != '/' else results+directory #result_dir[:-1].rstrip() if result_dir[-1] == '/' else result_dir.rstrip()
-            result_dir = results + '/' + directory + '/' + d
-            print(result_dir)
-            # try:
-            #     config = get_rllib_config(result_dir)
-            # except:
-            #     print(f"Loading {result_dir} config failed")
-            #     continue
+        # misspecification = float(directory.split("_")[-1])
+        # print(misspecification)
+        # for d in os.listdir(results+'/'+directory):
+        result_dir = results+'/'+directory if results[-1] != '/' else results+directory #result_dir[:-1].rstrip() if result_dir[-1] == '/' else result_dir.rstrip()
+            #result_dir = results + '/' + directory + '/' + d
+        print(result_dir)
+        try:
+            config = get_rllib_config(result_dir)
+        except:
+            print(f"Loading {result_dir} config failed")
+            continue
 
-            # # check if we have a multiagent environment but in a
-            # # backwards compatible way
-            # if config.get('multiagent', {}).get('policies', None):
-            #     multiagent = True
-            #     pkl = get_rllib_pkl(result_dir)
-            #     config['multiagent'] = pkl['multiagent']
-            # else:
-            #     multiagent = False
+        # check if we have a multiagent environment but in a
+        # backwards compatible way
+        if config.get('multiagent', {}).get('policies', None):
+            multiagent = True
+            pkl = get_rllib_pkl(result_dir)
+            config['multiagent'] = pkl['multiagent']
+        else:
+            multiagent = False
 
-            # # Run on only one cpu for rendering purposes
-            # config['num_workers'] = 0
+        # Run on only one cpu for rendering purposes
+        config['num_workers'] = 0
 
-            # flow_params = get_flow_params(config)
+        flow_params = get_flow_params(config)
 
-            # # hack for old pkl files
-            # # TODO(ev) remove eventually
-            # sim_params = flow_params['sim']
-            # setattr(sim_params, 'num_clients', 1)
+        # hack for old pkl files
+        sim_params = flow_params['sim']
+        setattr(sim_params, 'num_clients', 1)
 
-            # # for hacks for old pkl files TODO: remove eventually
-            # if not hasattr(sim_params, 'use_ballistic'):
-            #     sim_params.use_ballistic = False
+        # for hacks for old pkl files 
+        if not hasattr(sim_params, 'use_ballistic'):
+            sim_params.use_ballistic = False
 
-            # # Determine agent and checkpoint
-            # config_run = config['env_config']['run'] if 'run' in config['env_config'] \
-            #     else None
-            # if args.run and config_run:
-            #     if args.run != config_run:
-            #         print('visualizer_rllib.py: error: run argument '
-            #               + '\'{}\' passed in '.format(args.run)
-            #               + 'differs from the one stored in params.json '
-            #               + '\'{}\''.format(config_run))
-            #         sys.exit(1)
-            # if args.run:
-            #     agent_cls = get_agent_class(args.run)
-            # elif config_run:
-            #     agent_cls = get_agent_class(config_run)
-            # else:
-            #     print('visualizer_rllib.py: error: could not find flow parameter '
-            #           '\'run\' in params.json, '
-            #           'add argument --run to provide the algorithm or model used '
-            #           'to train the results\n e.g. '
-            #           'python ./visualizer_rllib.py /tmp/ray/result_dir 1 --run PPO')
-            #     sys.exit(1)
+        # Determine agent and checkpoint
+        config_run = config['env_config']['run'] if 'run' in config['env_config'] \
+            else None
+        if args.run and config_run:
+            if args.run != config_run:
+                print('visualizer_rllib.py: error: run argument '
+                      + '\'{}\' passed in '.format(args.run)
+                      + 'differs from the one stored in params.json '
+                      + '\'{}\''.format(config_run))
+                sys.exit(1)
+        if args.run:
+            agent_cls = get_trainer_class(args.run)
+        elif config_run:
+            agent_cls = get_trainer_class(config_run)
+        else:
+            print('visualizer_rllib.py: error: could not find flow parameter '
+                  '\'run\' in params.json, '
+                  'add argument --run to provide the algorithm or model used '
+                  'to train the results\n e.g. '
+                  'python ./visualizer_rllib.py /tmp/ray/result_dir 1 --run PPO')
+            sys.exit(1)
 
-            # sim_params.restart_instance = True
-            # dir_path = os.path.dirname(os.path.realpath(__file__))
+        sim_params.restart_instance = True
+        dir_path = os.path.dirname(os.path.realpath(__file__))
 
-            # # Create and register a gym+rllib env
-            # merge=[('desired_vel', 1), ('accel', 20)]
-            # bottle=[('desired_vel', 1), ('forward', 0.1), ('lane_change_bool', 1)]
-            # outflow=[('outflow', 1)]
-            # create_env, env_name = make_create_env(params=flow_params, reward_specification=merge)
-            # register_env(env_name, create_env)
+        # Create and register a gym+rllib env
+        merge=[('desired_vel', 1), ('accel', 20)]
+        bottle=[('desired_vel', 1), ('forward', 0.1), ('lane_change_bool', 1)]
+        outflow=[('outflow', 1)]
+        create_env, env_name = make_create_env(params=flow_params, reward_specification=merge)
+        register_env(env_name, create_env)
 
-            # # Start the environment with the gui turned on and a path for the
-            # # emission file
-            # env_params = flow_params['env']
-            # env_params.restart_instance = False
+        # Start the environment with the gui turned on and a path for the
+        # emission file
+        env_params = flow_params['env']
+        env_params.restart_instance = False
 
-            # # lower the horizon if testing
-            # if args.horizon:
-            #     config['horizon'] = args.horizon
-            #     env_params.horizon = args.horizon
+        # lower the horizon if testing
+        if args.horizon:
+            config['horizon'] = args.horizon
+            env_params.horizon = args.horizon
 
-            # # create the agent that will be used to compute the actions
-            # agent = agent_cls(env=env_name, config=config)
+        # create the agent that will be used to compute the actions
+        del config['callbacks']
+        agent = agent_cls(env=env_name, config=config)
 
-            # if hasattr(agent, "local_evaluator") and \
-            #         os.environ.get("TEST_FLAG") != 'True':
-            #     env = agent.local_evaluator.env
-            # else:
-            #     env = gym.make(env_name)
+        if hasattr(agent, "local_evaluator") and \
+                os.environ.get("TEST_FLAG") != 'True':
+            env = agent.local_evaluator.env
+        else:
+            env = gym.make(env_name)
 
-            # # if restart_instance, don't restart here because env.reset will restart later
-            # if not sim_params.restart_instance:
-            #     env.restart_simulation(sim_params=sim_params, render=sim_params.render)
+        # if restart_instance, don't restart here because env.reset will restart later
+        if not sim_params.restart_instance:
+            env.restart_simulation(sim_params=sim_params, render=sim_params.render)
 
-            for epoch in epochs:
-                # checkpoint = result_dir + '/checkpoint_' + epoch
-                # checkpoint = checkpoint + '/checkpoint-' + epoch
-                # if not os.path.isfile(checkpoint):
-                #     break
-                # agent.restore(checkpoint)
-                
-                # weights = [w for _, w in agent.get_weights()['default_policy'].items()]
-                # if len(weights) == 4:
-                #     break
+        for epoch in epochs:
+            checkpoint = result_dir + '/checkpoint_' + epoch.zfill(6)
+            checkpoint = checkpoint + '/checkpoint-' + epoch
+            if not os.path.isfile(checkpoint):
+                break
+            agent.restore(checkpoint)
+            
+            weights = [w for _, w in agent.get_weights()['default_policy'].items()]
+            names = [k for k, _ in agent.get_weights()['default_policy'].items()]
+            print(weights)
+            print(names)
+            #if len(weights) == 4:
+            #    break
 
-                # sv = np.array([scipy.linalg.svd(w, compute_uv=False, lapack_driver='gesvd')[0] for w in weights[::4]])
-                # kernel_norm1 = [np.linalg.norm(w, ord=1) for w in weights[::4]]
-                # kernel_norm2 = [np.linalg.norm(w, ord=2) for w in weights[::4]]
-                # bias_norm1 = [np.linalg.norm(w, ord=1) for w in weights[1::4]]
-                # bias_norm2 = [np.linalg.norm(w, ord=2) for w in weights[1::4]]
+            try:
+                #sv = np.array([scipy.linalg.svd(w, compute_uv=False, lapack_driver='gesvd')[0] for w in weights[::4]])
+                kernel_norm1 = [np.linalg.norm(w, ord=1) for w in weights[::4]]
+                kernel_norm2 = [np.linalg.norm(w, ord=2) for w in weights[::4]]
+                bias_norm1 = [np.linalg.norm(w, ord=1) for w in weights[1::4]]
+                bias_norm2 = [np.linalg.norm(w, ord=2) for w in weights[1::4]]
 
-                # params.append(np.sum([np.prod(w.shape) for w in weights[::4]]))
-                # l_1.append(max(np.max(kernel_norm1), np.max(bias_norm1)))
-                # l_2.append(max(np.max(kernel_norm2), np.max(bias_norm2)))
-                # lc.append(np.prod(sv))
-                # rew.append(rollout(env, agent, args, multiagent=multiagent))
+                params.append(np.sum([np.prod(w.shape) for w in weights[::4]]))
+                l_1.append(max(np.max(kernel_norm1), np.max(bias_norm1)))
+                l_2.append(max(np.max(kernel_norm2), np.max(bias_norm2)))
+                #lc.append(np.prod(sv))
+                rew.append(rollout(env, agent, args, multiagent=multiagent))
                 e.append(epoch)
-                m.append(misspecification)
+            except:
+                continue
+            #m.append(misspecification)
 
-            # terminate the environment
-            #env.unwrapped.terminate()
+        # terminate the environment
+        env.unwrapped.terminate()
 
     p2r = {}
     for p, r in zip(params, rew):
@@ -329,7 +332,7 @@ def create_parser():
     parser.add_argument(
         '--num_rollouts',
         type=int,
-        default=5,
+        default=4,
         help='The number of rollouts to visualize.')
     parser.add_argument(
         '--evaluate',

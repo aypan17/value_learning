@@ -172,7 +172,6 @@ NAS_100_TICKER = [
     "ORLY",
     "CERN",
     "BKNG",
-    "MYL",
     "MU",
     "DLTR",
     "ALXN",

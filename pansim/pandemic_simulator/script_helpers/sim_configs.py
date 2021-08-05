@@ -65,8 +65,8 @@ small_town_config = PandemicSimConfig(
     location_configs=[
         LocationConfig(Home, num=300),
         LocationConfig(GroceryStore, num=4, num_assignees=5, state_opts=dict(visitor_capacity=30)),
-        LocationConfig(Office, num=5, num_assignees=150, state_opts=dict(visitor_capacity=0)),
-        LocationConfig(School, num=10, num_assignees=4, state_opts=dict(visitor_capacity=30)),
+        LocationConfig(Office, num=5, num_assignees=200, state_opts=dict(visitor_capacity=0)),
+        LocationConfig(School, num=1, num_assignees=40, state_opts=dict(visitor_capacity=300)),
         LocationConfig(Hospital, num=1, num_assignees=30, state_opts=dict(patient_capacity=10)),
         LocationConfig(RetailStore, num=4, num_assignees=5, state_opts=dict(visitor_capacity=30)),
         LocationConfig(HairSalon, num=4, num_assignees=3, state_opts=dict(visitor_capacity=5)),

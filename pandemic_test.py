@@ -111,15 +111,15 @@ def init(args):
             constrain=True
         )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
-    return env, gym.get_single_env()
+    return env, gym.get_single_env(), viz
 
-def train(env, test_env, args):
+def train(env, test_env, viz, args):
     model = make_model(env)
     print("Running model")
     model.learn(total_timesteps = 2048 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
     return model    
 
-def train_sacd(env, test_env, args):
+def train_sacd(env, test_env, viz, args):
     cfg = wandb.config
     # Create the agent.
     Agent = SacdAgent if not args.shared else SharedSacdAgent
@@ -161,7 +161,7 @@ def main():
     }
 
     wandb.init(
-      project="test-space",
+      project="value-learning",
       group="covid",
       entity="aypan17",
       config=config,
@@ -169,11 +169,11 @@ def main():
     )
     if args.sacd:
         args.n_cpus=1
-        train_env, test_env = init(args)
-        train_sacd(train_env, test_env, args)
+        train_env, test_env, viz = init(args)
+        train_sacd(train_env, test_env, viz, args)
     else:
-        train_env, test_env = init(args)
-        train(train_env, test_env, args)
+        train_env, test_env, viz = init(args)
+        train(train_env, test_env, viz, args)
 
 
 if __name__ == '__main__':
