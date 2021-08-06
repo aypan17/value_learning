@@ -248,7 +248,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
             self.evaluate(epoch, eval_paths=eval_paths)
-            assert False
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)
             table_keys = logger.get_table_key_set()
@@ -501,8 +500,10 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics['Hyperglycemic'] = hyper
         average_returns = eval_util.get_average_returns(test_paths)
         true_returns = eval_util.get_average_true_returns(test_paths)
+        fail_prop = eval_util.get_failed_episodes(test_paths)
         statistics['AverageReturn'] = average_returns
         statistics['TrueReturn'] = true_returns
+        statistics['CatastrophicProportion'] = fail_prop
         wandb.log(statistics)
         for key, value in statistics.items():
             logger.record_tabular(key, value)

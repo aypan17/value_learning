@@ -39,9 +39,14 @@ def get_average_returns(paths):
 
 
 def get_average_true_returns(paths):
-    returns = [sum(path["env_infos"]["true_reward"]) for path in paths]
+    returns = [sum([info["true_reward"] for info in path["env_infos"]]) for path in paths]
     return np.mean(returns)
 
+def get_failed_episodes(paths):
+    fail = 0
+    for p in paths:
+        fail += any(p['terminals'])
+    return fail / len(paths)
 
 def create_stats_ordered_dict(
         name,

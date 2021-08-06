@@ -26,9 +26,9 @@ source_path = './'  # the path to the location of the folder 'bgp' which contain
 print(base_name)
 
 # General utility parameters
-debug = True
-device_list = ['cuda:0']  # list of cuda device ids or None for cpu
-device = 'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
+debug = False
+device_list = ['cpu']  # list of cuda device ids or None for cpu
+device = "cpu" #'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
 seed_options = [i for i in range(3)]
 validation_seed_offset = 1000000
 test_seed_offset = 2000000
@@ -94,7 +94,7 @@ if not os.path.exists(full_path) and not finish:
 if transfer_run:
     num_epochs = 50
 else:
-    num_epochs = 300
+    num_epochs = 3
 
 # Overwriting training parameters to make short runs for debugging purposes
 if debug:

@@ -221,7 +221,7 @@ def train(model, env_trade):
 			tb_log_name = 'test',
 			n_eval_episodes = 1,
 			callback = WandbCallback())
-	#model.save("different.model")
+	model.save(cfg.save_path+".model")
 	return model
 
 
