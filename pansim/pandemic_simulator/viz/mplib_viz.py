@@ -172,8 +172,8 @@ class BaseMatplotLibViz(PandemicViz):
             self.annotate_plot(ax, plot_ref_labels[ax_i])
         plt.tight_layout()
         if epoch is not None:
-            savedir = str(int(epoch)) + "_" + name
-        plt.savefig(f"pandemic_policy/{savedir}")
+            name = str(int(epoch)) + "_" + name
+        plt.savefig(f"pandemic_policy/{name}")
         #plt.show()
 
 

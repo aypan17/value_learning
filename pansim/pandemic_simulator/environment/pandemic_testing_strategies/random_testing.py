@@ -45,18 +45,19 @@ class RandomPandemicTesting(PandemicTesting):
 
     def admit_person(self, person_state: PersonState) -> bool:
         infection_state = cast(IndividualInfectionState, person_state.infection_state)
+        infection_state_delta = cast(IndividualInfectionState, person_state.infection_state_delta)
 
         if person_state.test_result == PandemicTestResult.DEAD:
             # A person is not tested if he/she is dead
             return False
 
-        elif infection_state.summary == InfectionSummary.DEAD:
+        elif infection_state.summary == InfectionSummary.DEAD or infection_state_delta.summary == InfectionSummary.DEAD:
             return True
 
         rnd = self._numpy_rng.uniform()
         test_person = (
                 # if the person is in a hospital, then retest deterministically
-                infection_state.is_hospitalized or
+                infection_state.is_hospitalized or infection_state_delta.is_hospitalized or 
 
                 # if the person was tested before, then retest based on retest-probability (independent of symptoms)
                 (person_state.test_result in {PandemicTestResult.CRITICAL,
@@ -67,19 +68,25 @@ class RandomPandemicTesting(PandemicTesting):
                         (infection_state.summary == InfectionSummary.CRITICAL and rnd < self._critical_testing_rate) or
                         (infection_state.summary != InfectionSummary.CRITICAL and rnd < self._symp_testing_rate))) or
 
+                (infection_state_delta.shows_symptoms and (
+                        (infection_state_delta.summary == InfectionSummary.CRITICAL and rnd < self._critical_testing_rate) or
+                        (infection_state_delta.summary != InfectionSummary.CRITICAL and rnd < self._symp_testing_rate))) or
+
                 # if the person does not show symptoms, then test based on spontaneous-probability
-                (not infection_state.shows_symptoms and rnd < self._spontaneous_testing_rate)
+                (not infection_state.shows_symptoms and rnd < self._spontaneous_testing_rate) or 
+                (not infection_state_delta.shows_symptoms and rnd < self._spontaneous_testing_rate)
         )
         return test_person
 
     def test_person(self, person_state: PersonState) -> PandemicTestResult:
         positive_states = {InfectionSummary.INFECTED, InfectionSummary.CRITICAL}
         infection_state = cast(IndividualInfectionState, person_state.infection_state)
+        infection_state_delta = cast(IndividualInfectionState, person_state.infection_state_delta)
 
-        if infection_state.summary == InfectionSummary.DEAD:
+        if infection_state.summary == InfectionSummary.DEAD or infection_state_delta.summary == InfectionSummary.DEAD:
             return PandemicTestResult.DEAD
 
-        test_outcome = infection_state.summary in positive_states
+        test_outcome = infection_state.summary in positive_states or infection_state_delta.summary in positive_states
 
         # account for testing uncertainty
         rnd = self._numpy_rng.uniform()
@@ -88,7 +95,7 @@ class RandomPandemicTesting(PandemicTesting):
         elif not test_outcome and rnd < self._testing_false_positive_rate:
             test_outcome = True
 
-        critical = infection_state.summary == InfectionSummary.CRITICAL
+        critical = infection_state.summary == InfectionSummary.CRITICAL or infection_state_delta.summary == InfectionSummary.CRITICAL
         test_result = (PandemicTestResult.CRITICAL if test_outcome and critical
                        else PandemicTestResult.POSITIVE if test_outcome else PandemicTestResult.NEGATIVE)
 

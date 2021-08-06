@@ -163,7 +163,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     def train_online(self, start_epoch=0):
-        wandb.init(project="test-space", entity="aypan17")
+        wandb.init(project="value-learning", group="glucose", entity="aypan17")
         self._current_path_builder = PathBuilder()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
@@ -506,7 +506,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics['CatastrophicProportion'] = fail_prop
         wandb.log(statistics)
         for key, value in statistics.items():
-            logger.record_tabular(key, value)
+            if key != 'TrueReturn' and key != 'CatastrophicProportion':
+                logger.record_tabular(key, value)
         self.need_to_update_eval_statistics = True
 
     def get_eval_paths(self):

@@ -6,7 +6,7 @@ from cachetools import cached
 
 from .interfaces import LocationID, Location, PersonID, Person, Registry, RegistrationError, InfectionSummary, \
     IndividualInfectionState, BusinessLocationState, PandemicTestResult, LocationSummary, SimTimeTuple, SimTime, \
-    LocationState
+    LocationState, get_infection_summary
 from pandemic_simulator.environment.interfaces.location_base_business import BusinessBaseLocation
 from .location.cemetery import Cemetery
 
@@ -186,11 +186,8 @@ class CityRegistry(Registry):
         return cast(Set, assignees)
 
     def get_person_infection_summary(self, person_id: PersonID) -> Optional[InfectionSummary]:
-        if self._person_register[person_id].state.infection_state is not None:
-            state = cast(IndividualInfectionState, self._person_register[person_id].state.infection_state)
-            return state.summary
-
-        return None
+        person_state = self._person_register[person_id].state
+        return get_infection_summary(person_state)
 
     def get_person_test_result(self, person_id: PersonID) -> PandemicTestResult:
         state = self._person_register[person_id].state

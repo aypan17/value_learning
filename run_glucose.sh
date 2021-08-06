@@ -8,7 +8,6 @@
 #SBATCH --gres gpu:1
 #SBATCH -p 'jsteinhardt'
 #SBATCH -w smaug-gpu
-
 # set -x 
 
 # simulate conda activate flow

@@ -38,6 +38,8 @@ def reward_name_to_function(reward_name):
         reward_fun = reward_functions.reward_cgm_low
     elif reward_name == 'risk_insulin':
         reward_fun = reward_functions.risk_insulin
+    elif reward_name == 'magni_bg_insulin':
+        reward_fun = reward_functions.magni_bg_insulin
     else:
         raise ValueError('{} not a proper reward_name'.format(reward_name))
     return reward_fun

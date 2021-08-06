@@ -10,7 +10,7 @@ from orderedset import OrderedSet
 from .contact_tracing import MaxSlotContactTracer
 from .infection_model import SEIRModel, SpreadProbabilityParams
 from .interfaces import ContactRate, ContactTracer, PandemicRegulation, PandemicSimState, PandemicTesting, \
-    PandemicTestResult, \
+    PandemicTestResult, get_infection_summary, \
     DEFAULT, GlobalTestingState, InfectionModel, InfectionSummary, Location, LocationID, Person, PersonID, Registry, \
     SimTime, SimTimeInterval, sorted_infection_summary, globals, PersonRoutineAssignment
 from .location import Home, GroceryStore, Office, School, Hospital, RetailStore, HairSalon, Restaurant, Bar
@@ -58,7 +58,8 @@ class PandemicSim:
                  infection_update_interval: SimTimeInterval = SimTimeInterval(day=1),
                  person_routine_assignment: Optional[PersonRoutineAssignment] = None,
                  infection_threshold: int = 0,
-                 hospital_capacity: int = 0):
+                 hospital_capacity: int = 0,
+                 delta_start: int = 366):
         """
         :param locations: A sequence of Location instances.
         :param persons: A sequence of Person instances.
@@ -87,6 +88,7 @@ class PandemicSim:
         self._new_time_slot_interval = new_time_slot_interval
         self._infection_update_interval = infection_update_interval
         self._infection_threshold = infection_threshold
+        self._delta_start = delta_start
 
         self._type_to_locations = defaultdict(list)
         for loc in locations:
@@ -176,7 +178,8 @@ class PandemicSim:
                            contact_tracer=contact_tracer,
                            infection_threshold=sim_opts.infection_threshold,
                            person_routine_assignment=sim_config.person_routine_assignment,
-                           hospital_capacity=sim_config.max_hospital_capacity)
+                           hospital_capacity=sim_config.max_hospital_capacity,
+                           delta_start=sim_config.delta_start)
 
     @property
     def registry(self) -> Registry:
@@ -226,6 +229,8 @@ class PandemicSim:
             person2_state = self._id_to_person[id_person2].state
             person1_inf_state = person1_state.infection_state
             person2_inf_state = person2_state.infection_state
+            person1_inf_state_delta = person1_state.infection_state_delta
+            person2_inf_state_delta = person2_state.infection_state_delta
 
             if (
                     # both are not infectious
@@ -249,6 +254,29 @@ class PandemicSim:
                 person1_state.not_infection_probability *= 1 - spread_probability
                 person1_state.not_infection_probability_history.append((person1_state.current_location,
                                                                         person1_state.not_infection_probability))
+
+            if (
+                    # both are not infectious
+                    (person1_inf_state_delta is None and person2_inf_state_delta is None) or
+
+                    # both are already infected
+                    (person1_inf_state_delta is not None and person2_inf_state_delta is not None and
+
+                     person1_inf_state_delta.summary in infectious_states and person2_inf_state_delta.summary in infectious_states)
+            ):
+                continue
+            elif person1_inf_state_delta is not None and person1_inf_state_delta.summary in infectious_states:
+                spread_probability = (person1_inf_state_delta.spread_probability *
+                                      person1_state.infection_spread_multiplier_delta)
+                person2_state.not_infection_probability_delta *= 1 - spread_probability
+                person2_state.not_infection_probability_delta_history.append((person2_state.current_location,
+                                                                        person2_state.not_infection_probability_delta))
+            elif person2_inf_state_delta is not None and person2_inf_state_delta.summary in infectious_states:
+                spread_probability = (person2_inf_state_delta.spread_probability *
+                                      person2_state.infection_spread_multiplier_delta)
+                person1_state.not_infection_probability_delta *= 1 - spread_probability
+                person1_state.not_infection_probability_delta_history.append((person1_state.current_location,
+                                                                        person1_state.not_infection_probability_delta))
 
     def _update_global_testing_state(self, new_result: PandemicTestResult, prev_result: PandemicTestResult) -> None:
         if new_result == prev_result:
@@ -281,11 +309,12 @@ class PandemicSim:
 
     def poll(self) -> np.ndarray:
         """Returns an observation of the current state of the simulator. Used to update regulation specifics."""
+        time = [float(self._state.sim_time.day / 365)]
         stage = [int(self._state.regulation_stage)]
         threshold_reached = [int(self._state.infection_above_threshold)]
-        hospitalizations = [max(self._max_hospital_capacity, self._state.global_infection_summary.get(InfectionSummary.CRITICAL))]
+        #hospitalizations = [max(self._max_hospital_capacity, self._state.global_infection_summary.get(InfectionSummary.CRITICAL))]
         test_results = [self._state.global_testing_state.summary.get(s) for s in sorted_infection_summary]
-        summary = np.array(stage + threshold_reached + hospitalizations + test_results)
+        summary = np.array(time + stage + threshold_reached + test_results)
         return summary
 
         # loc_data = []
@@ -342,9 +371,27 @@ class PandemicSim:
                     person_location_type = self._registry.location_id_to_type(infection_location)
                     self._state.location_type_infection_summary[person_location_type] += 1
 
-                global_infection_summary[person.state.infection_state.summary] += 1
+                # delta infection model step --- only run if delta variant emerged
+                p_not_infected = person.state.not_infection_probability_delta if self._state.sim_time.day > self._delta_start else 1
+                person.state.infection_state_delta = self._infection_model.step(person.state.infection_state_delta,
+                                                                          person.id.age,
+                                                                          person.state.risk,
+                                                                          1 - p_not_infected)
+
+                if person.state.infection_state_delta.exposed_rnb != -1.:
+                    for vals in person.state.not_infection_probability_delta_history:
+                        if person.state.infection_state_delta.exposed_rnb < 1 - vals[1]:
+                            infection_location = vals[0]
+                            break
+
+                    person_location_type = self._registry.location_id_to_type(infection_location)
+                    self._state.location_type_infection_summary[person_location_type] += 1
+
+                global_infection_summary[get_infection_summary(person.state)] += 1
                 person.state.not_infection_probability = 1.
+                person.state.not_infection_probability_delta = 1.
                 person.state.not_infection_probability_history = []
+                person.state.not_infection_probability_delta_history = []
 
                 # test the person for infection
                 if self._pandemic_testing.admit_person(person.state):

@@ -19,7 +19,9 @@ from sacd.agent import SacdAgent, SharedSacdAgent
 GAMMA = float(sys.argv[6])
 
 def make_cfg():
-    return ps.sh.small_town_config
+    cfg =  ps.sh.small_town_config
+    cfg["delta_start"] = 64
+    return cfg
     # sim_config = ps.env.PandemicSimConfig(
     #     num_persons=500,
     #     location_configs=[

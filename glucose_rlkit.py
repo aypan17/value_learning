@@ -19,7 +19,7 @@ Note you will need to perform a normal from-scratch run before any transfer runs
 """
 
 t_start = time.time()
-base_name = 'misweight'
+base_name = 'magni'
 save_path = './glucose_policy'  # where the outputs will be saved
 full_path = '{}/{}'.format(save_path, base_name)
 source_path = './'  # the path to the location of the folder 'bgp' which contains the source code
@@ -27,8 +27,8 @@ print(base_name)
 
 # General utility parameters
 debug = False
-device_list = ['cpu']  # list of cuda device ids or None for cpu
-device = "cpu" #'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
+#device_list = ['cuda:0']  # list of cuda device ids or None for cpu
+device = 'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
 seed_options = [i for i in range(3)]
 validation_seed_offset = 1000000
 test_seed_offset = 2000000
@@ -36,7 +36,7 @@ test_seed_offset = 2000000
 person_options = (['child#0{}'.format(str(i).zfill(2)) for i in range(1, 11)] +
                   ['adolescent#0{}'.format(str(i).zfill(2)) for i in range(1, 11)] +
                   ['adult#0{}'.format(str(i).zfill(2)) for i in range(1, 11)])
-seed_options = [1]
+seed_options = [0]
 person_options = (['adult#001'])
 # Transfer
 transfer_run = False  # Used to differentiate RL-Scratch from RL-Trans
@@ -58,14 +58,14 @@ use_ground_truth = False
 time_std = None
 
 # Varying amount of evaluation
-num_eval_runs = 10
+num_eval_runs = 100
 
 # Some important training parameters
 num_steps_per_epoch = 5760
 num_steps_per_eval = 2880
 loss_function = nn.SmoothL1Loss
-reward_fun = 'magni_bg'
-true_reward_fn = 'risk_insulin'
+reward_fun = 'magni_bg_insulin'
+true_reward_fn = 'magni_bg'
 snapshot_gap = 1
 discount = 0.99
 policy_lr = 3e-4
@@ -94,14 +94,13 @@ if not os.path.exists(full_path) and not finish:
 if transfer_run:
     num_epochs = 50
 else:
-    num_epochs = 3
+    num_epochs = 300
 
 # Overwriting training parameters to make short runs for debugging purposes
-if debug:
-    num_steps_per_epoch = 576
-    num_steps_per_eval = 576
-    num_epochs = 2
-    num_eval_runs = 1
+# num_steps_per_epoch = 12
+# num_steps_per_eval = 12
+# num_epochs = 2
+# num_eval_runs = 1
 
 # Running
 tuples = []
@@ -222,15 +221,20 @@ for setting in itertools.product(*option_dict.values()):
     tuples.append((variant, run_func))
 print('{} Jobs Launched'.format(len(tuples)))
 
-if debug:
-    for tup in tuples:
-        variant, run_func = tup
-        run_func(variant=variant)
-elif device_list is not None:
-    run_manager = experiments.RLKitRunManager(device_list=device_list, run_func=run_func)
-    for c in tuples:
-        run_manager.add_job(c)
-    run_manager.run_until_empty(10)
+for tup in tuples:
+    variant, run_func = tup
+    run_func(variant=variant)
+
+# if debug:
+#     for tup in tuples:
+#         variant, run_func = tup
+#         run_func(variant=variant)
+    
+# elif device_list is not None:
+#     run_manager = experiments.RLKitRunManager(device_list=device_list, run_func=run_func)
+#     for c in tuples:
+#         run_manager.add_job(c)
+#     run_manager.run_until_empty(10)
 
 print('Finished {}'.format(base_name))
 print('Total Time:', timedelta(seconds=time.time()-t_start))

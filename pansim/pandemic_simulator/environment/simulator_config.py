@@ -38,6 +38,9 @@ class PandemicSimConfig:
     num_persons: int = 1000
     """Number of persons in the simulator"""
 
+    delta_start: int = 366
+    """Delta variant starts after {delta_start} days. No variant if > 365."""
+
     location_configs: Sequence[LocationConfig] = ()
     """Configs of all locations in the simulator"""
 

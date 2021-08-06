@@ -47,7 +47,7 @@ class BasePerson(Person):
         self._id = person_id
         self._home = home
         self._regulation_compliance_prob = regulation_compliance_prob
-        self._init_state = init_state or PersonState(infection_state=None,
+        self._init_state = init_state or PersonState(infection_state=None, infection_state_delta=None,
                                                      current_location=home,
                                                      risk=self._numpy_rng.choice([r for r in Risk]),
                                                      infection_spread_multiplier=self._regulation_compliance_prob)
@@ -107,11 +107,12 @@ class BasePerson(Person):
         curr_loc = self._state.current_location
         test_result = self._state.test_result
         is_hospitalized = self._state.infection_state is not None and self._state.infection_state.is_hospitalized
+        is_hospitalized = is_hospitalized or (self._state.infection_state_delta is not None and self._state.infection_state_delta.is_hospitalized)
         if test_result == PandemicTestResult.DEAD:
             # the person is dead - if there is a cemetery and the person is not there then move the person there.
             if len(self._cemetery_ids) > 0 and curr_loc not in self._cemetery_ids:
                 self.enter_location(self._cemetery_ids[self._numpy_rng.randint(0, len(self._cemetery_ids))])
-                self._set_is_hospitalized(False)
+            self._set_is_hospitalized(False)
             # nothing more to do since the person is dead - return None
             return None
         elif test_result == PandemicTestResult.CRITICAL:
@@ -174,10 +175,15 @@ class BasePerson(Person):
         self._state.avoid_location_types = (regulation.risk_to_avoid_location_types[self._state.risk]
                                             if regulation.risk_to_avoid_location_types is not None else [])
 
-        self._state.infection_spread_multiplier = 0.8 if regulation.practice_good_hygiene else 1.0
+        self._state.infection_spread_multiplier *= 0.8 if regulation.practice_good_hygiene else 1.0
         self._state.infection_spread_multiplier *= 0.6 if regulation.wear_facial_coverings else 1.0
         self._state.infection_spread_multiplier = (
                 1 - (1 - self._state.infection_spread_multiplier) * self._regulation_compliance_prob)
+
+        self._state.infection_spread_multiplier_delta *= 0.8 if regulation.practice_good_hygiene else 1.0
+        self._state.infection_spread_multiplier_delta *= 0.6 if regulation.wear_facial_coverings else 1.0
+        self._state.infection_spread_multiplier_delta = (
+                1 - (1 - self._state.infection_spread_multiplier_delta) * self._regulation_compliance_prob)
 
     def _contact_positive(self, contacts: Sequence[PersonID]) -> bool:
         for contact in contacts:

@@ -187,12 +187,12 @@ class PandemicGymEnv(gym.Env):
 
         prev_obs = self._last_observation
         self._last_reward = self._reward_fn.calculate_reward(prev_obs, action, obs) if self._reward_fn else 0.
-        self._last_true_reward = self._true_reward_fn.calculate_reward(prev_obs, action, obs) 
+        self._last_true_reward = self._true_reward_fn.calculate_reward(prev_obs, action, obs) if self._true_reward_fn is not None else 0.
         done = self._done_fn.calculate_done(obs, action) if self._done_fn else False
         self._last_observation = obs
 
-        #return self._last_observation, self._last_reward, done, {}
-        return self._pandemic_sim.poll(), self._last_reward, done, {}
+        return self._last_observation, self._last_reward, done, {}
+        #return self._pandemic_sim.poll(), self._last_reward, done, {}
         #return self.observe, self._last_reward, done, {}
 
     def reset(self) -> PandemicObservation:
