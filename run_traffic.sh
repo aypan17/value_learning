@@ -52,26 +52,9 @@ echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
-    ray start --head --node-ip-address="$head_node_ip" --redis-port=$port \
+    ray start --head --node-ip-address="$head_node_ip" --port=$port \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --block & # --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
 # __doc_head_ray_end__
-
-# __doc_worker_ray_start__
-# optional, though may be useful in certain versions of Ray < 1.0.
-sleep 3
-
-# number of nodes other than the head node
-worker_num=$((SLURM_JOB_NUM_NODES - 1))
-
-for ((i = 1; i <= worker_num; i++)); do
-    node_i=${nodes_array[$i]}
-    echo "Starting WORKER $i at $node_i"
-    srun --nodes=1 --ntasks=1 -w "$node_i" \
-        ray start --address "$ip_head" \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
-    sleep 5
-done
-# __doc_worker_ray_end__
 
 # __doc_script_start__
 CONFIG=$1
@@ -87,13 +70,13 @@ if [ "${CONFIG}" = "test" ]; then
 fi
 
 if [ "${CONFIG}" = "ss" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 
+    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --rollout_size 7 
+    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 1000 --rollout_size 7 
 elif [ "${CONFIG}" = "sm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 --multi
+    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --rollout_size 7 --multi 
+    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --rollout_size 7 --multi 
 else
     echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
     exit 0

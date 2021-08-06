@@ -23,73 +23,61 @@ import numpy as np
 import wandb
 import neptune.new as neptune
 
+from ray.rllib.agents.callbacks import DefaultCallbacks
+
 GAMMA=float(sys.argv[5])
 
 # Callbacks
-# Custom state can be stored for the episode in the info["episode"].user_data dict
-# Custom scalar metrics reported by saving values to the info["episode"].custom_metrics dict
-def on_episode_start(info):
-		episode = info["episode"]
-		episode.user_data["true_reward"] = []
-		episode.user_data["proxy_reward"] = []
+class RewardCallback(DefaultCallbacks):
+	def on_episode_start(self, *, worker, base_env, policies, episode, env_index, **kwargs):
+			episode.user_data["true_reward"] = []
+			episode.user_data["proxy_reward"] = []
 
-def on_episode_step(info):
-		episode = info["episode"]
-		environment = info["env"]
-		env = environment.vector_env.envs[0]
-		actions = episode.prev_action_for()
+	def on_episode_step(self, *, worker, base_env, episode, env_index, **kwargs):
+			env = base_env.vector_env.envs[0]
+			actions = episode.prev_action_for()
 
-		rew = 0
-		vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
+			rew = 0
+			vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
 
-		#if all(vel > -100):
-		#		num_rl = env.k.vehicle.num_rl_vehicles
-		#		lane_change_acts = np.abs(np.round(actions[1::2])[:num_rl])
-		#		rew += REWARD_REGISTRY['desired_vel'](env, actions)
-		#		rew += 0.1 * REWARD_REGISTRY['forward'](env, actions)
-		#		rew += REWARD_REGISTRY['lane_change_bool'](env, actions)
+			#if all(vel > -100):
+			#		num_rl = env.k.vehicle.num_rl_vehicles
+			#		lane_change_acts = np.abs(np.round(actions[1::2])[:num_rl])
+			#		rew += REWARD_REGISTRY['desired_vel'](env, actions)
+			#		rew += 0.1 * REWARD_REGISTRY['forward'](env, actions)
+			#		rew += REWARD_REGISTRY['lane_change_bool'](env, actions)
 
-		if all(vel > -100):
-				rew += REWARD_REGISTRY['vel'](env, actions)
-				rew += 20 * REWARD_REGISTRY['accel'](env, actions)
+			if all(vel > -100):
+					rew += REWARD_REGISTRY['vel'](env, actions)
+					rew += 20 * REWARD_REGISTRY['accel'](env, actions)
 
-		# record
-		episode.user_data["true_reward"].append(rew)
-		episode.user_data["proxy_reward"].append(episode.prev_reward_for())
+			# record
+			episode.user_data["true_reward"].append(rew)
+			episode.user_data["proxy_reward"].append(episode.prev_reward_for())
 
-def on_episode_step_multi(info):
-		episode = info["episode"]
-		environment = info["env"]
-		env = environment.envs[0]
-		actions = episode.prev_action_for()
+	def on_episode_step_multi(self, *, worker, base_env, policies, episode, env_index, **kwargs):
+			base_env = environment.envs[0]
+			actions = episode.prev_action_for()
 
-		true_rew = 0
-		vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
-		if all(vel > -100):
-				true_rew += REWARD_REGISTRY['vel'](env, actions)
-				true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
+			true_rew = 0
+			vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
+			if all(vel > -100):
+					true_rew += REWARD_REGISTRY['vel'](env, actions)
+					true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
 
-		# reward average velocity
-		episode.user_data["true_reward"].append(true_rew)
-		episode.user_data["proxy_reward"].append(episode.prev_reward_for())
+			# reward average velocity
+			episode.user_data["true_reward"].append(true_rew)
+			episode.user_data["proxy_reward"].append(episode.prev_reward_for())
 
-def on_episode_end(info):
-		episode = info["episode"]
-	
-		horizon = len(episode.user_data["proxy_reward"])
-		true_w = np.geomspace(1, 0.999**(horizon-1), num=horizon)
-		proxy_w = np.geomspace(1, GAMMA**(horizon-1), num=horizon)
-		true_rew = np.dot(true_w, np.array(episode.user_data["true_reward"]))
-		rew = np.dot(proxy_w, np.array(episode.user_data["proxy_reward"]))
+	def on_episode_end(self, *, worker, base_env, policies, episode, env_index, **kwargs):
+			horizon = len(episode.user_data["proxy_reward"])
+			true_w = np.geomspace(1, 0.999**(horizon-1), num=horizon)
+			proxy_w = np.geomspace(1, GAMMA**(horizon-1), num=horizon)
 
-		episode.custom_metrics["true_reward"] = true_rew				
-		episode.custom_metrics["proxy_reward"] = rew
-
-def on_train_result(info):
-		pass
-
-def on_postprocess_traj(info):
-		pass
+			true_rew = np.dot(true_w, np.array(episode.user_data["true_reward"]))
+			rew = np.dot(proxy_w, np.array(episode.user_data["proxy_reward"]))
+			episode.custom_metrics["true_reward"] = true_rew				
+			episode.custom_metrics["proxy_reward"] = rew
 
 
 def parse_args(args):
@@ -184,19 +172,22 @@ def setup_exps_rllib(flow_params,
 
 		config["seed"] = 17
 
-		config["num_workers"] = 4 #n_cpus - 1
+		config["num_workers"] = 7 #n_cpus - 1
 		config["train_batch_size"] = horizon * n_rollouts
 		config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
 		config["gamma"] = GAMMA  # discount rate
 		#fcnet_hiddens = [int(sys.argv[5])] * int(sys.argv[6])
-		config["model"].update({"fcnet_hiddens": tune.grid_search([[], [8, 8], [32, 32], [64, 64], [128, 128]])})
-		#config["model"].update({"fcnet_hiddens": tune.grid_search([[], [4, 4], [16, 16], [32, 32], [64, 64], [64, 64, 64], [128, 128], [256, 256]])}) #[32, 32, 32]
+		config["model"].update({"fcnet_hiddens": tune.grid_search([[], [4, 4], [16, 16], [64, 64], [256, 256]])})
+		#config["model"].update({"fcnet_hiddens": tune.grid_search([[4], [8], [8, 8], [16, 16], [64, 64]])}) #[32, 32, 32]
 		config["use_gae"] = True
 		config["lambda"] = 0.97
 		config["kl_target"] = 0.02
 		config["vf_clip_param"] = 10000
 		config["num_sgd_iter"] = 10
 		config["horizon"] = horizon
+		config["framework"] = "torch"
+		config["callbacks"] = RewardCallback	
+		config["log_level"] = "ERROR"	
 
 		# save the flow params for replay
 		flow_json = json.dumps(
@@ -212,12 +203,7 @@ def setup_exps_rllib(flow_params,
 						{'policy_mapping_fn': tune.function(policy_mapping_fn)})
 		if policies_to_train is not None:
 				config['multiagent'].update({'policies_to_train': policies_to_train})
-
-		config['callbacks'] = {
-										"on_episode_start": on_episode_start,
-										"on_episode_step": on_episode_step,
-										"on_episode_end": on_episode_end,
-								}
+		
 
 		create_env, gym_name = make_create_env(params=flow_params, reward_specification=reward_specification)
 
@@ -260,7 +246,7 @@ def train(flags):
 		def name(x):
 			return model_name		
 
-		ray.init(address=os.environ["ip_head"])
+		ray.init(address=os.environ["ip_head"], log_to_driver=False)
 		
 		alg_run, gym_name, config = setup_exps_rllib(
 				flow_params, n_cpus, n_rollouts, reward_specification,
