@@ -46,6 +46,8 @@ class RandomPandemicTesting(PandemicTesting):
     def admit_person(self, person_state: PersonState) -> bool:
         infection_state = cast(IndividualInfectionState, person_state.infection_state)
         infection_state_delta = cast(IndividualInfectionState, person_state.infection_state_delta)
+        if infection_state_delta is None:
+            infection_state_delta = IndividualInfectionState(summary=InfectionSummary.NONE, spread_probability=0)
 
         if person_state.test_result == PandemicTestResult.DEAD:
             # A person is not tested if he/she is dead
@@ -82,6 +84,8 @@ class RandomPandemicTesting(PandemicTesting):
         positive_states = {InfectionSummary.INFECTED, InfectionSummary.CRITICAL}
         infection_state = cast(IndividualInfectionState, person_state.infection_state)
         infection_state_delta = cast(IndividualInfectionState, person_state.infection_state_delta)
+        if infection_state_delta is None:
+            infection_state_delta = IndividualInfectionState(summary=InfectionSummary.NONE, spread_probability=0)
 
         if infection_state.summary == InfectionSummary.DEAD or infection_state_delta.summary == InfectionSummary.DEAD:
             return PandemicTestResult.DEAD

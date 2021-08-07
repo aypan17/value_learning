@@ -52,6 +52,7 @@ class PandemicSim:
                  locations: Sequence[Location],
                  persons: Sequence[Person],
                  infection_model: Optional[InfectionModel] = None,
+                 infection_model_delta: Optional[InfectionModel] = None,
                  pandemic_testing: Optional[PandemicTesting] = None,
                  contact_tracer: Optional[ContactTracer] = None,
                  new_time_slot_interval: SimTimeInterval = SimTimeInterval(day=1),
@@ -83,6 +84,7 @@ class PandemicSim:
         assert self._registry.person_ids.issuperset(self._id_to_person)
 
         self._infection_model = infection_model or SEIRModel()
+        self._infection_model_delta = infection_model_delta or SEIRModel()
         self._pandemic_testing = pandemic_testing or RandomPandemicTesting()
         self._contact_tracer = contact_tracer
         self._new_time_slot_interval = new_time_slot_interval
@@ -158,6 +160,10 @@ class PandemicSim:
             spread_probability_params=SpreadProbabilityParams(sim_opts.infection_spread_rate_mean,
                                                               sim_opts.infection_spread_rate_sigma))
 
+        infection_model_delta = SEIRModel(
+            spread_probability_params=SpreadProbabilityParams(sim_opts.infection_delta_spread_rate_mean,
+                                                              sim_opts.infection_delta_spread_rate_sigma))
+
         # setup pandemic testing
         pandemic_testing = RandomPandemicTesting(spontaneous_testing_rate=sim_opts.spontaneous_testing_rate,
                                                  symp_testing_rate=sim_opts.symp_testing_rate,
@@ -174,6 +180,7 @@ class PandemicSim:
         return PandemicSim(persons=persons,
                            locations=locations,
                            infection_model=infection_model,
+                           infection_model_delta=infection_model_delta,
                            pandemic_testing=pandemic_testing,
                            contact_tracer=contact_tracer,
                            infection_threshold=sim_opts.infection_threshold,
@@ -372,20 +379,20 @@ class PandemicSim:
                     self._state.location_type_infection_summary[person_location_type] += 1
 
                 # delta infection model step --- only run if delta variant emerged
-                p_not_infected = person.state.not_infection_probability_delta if self._state.sim_time.day > self._delta_start else 1
-                person.state.infection_state_delta = self._infection_model.step(person.state.infection_state_delta,
-                                                                          person.id.age,
-                                                                          person.state.risk,
-                                                                          1 - p_not_infected)
+                if self._state.sim_time.day > self._delta_start:
+                    person.state.infection_state_delta = self._infection_model_delta.step(person.state.infection_state_delta,
+                                                                              person.id.age,
+                                                                              person.state.risk,
+                                                                              1 - person.state.not_infection_probability_delta)
 
-                if person.state.infection_state_delta.exposed_rnb != -1.:
-                    for vals in person.state.not_infection_probability_delta_history:
-                        if person.state.infection_state_delta.exposed_rnb < 1 - vals[1]:
-                            infection_location = vals[0]
-                            break
+                    if person.state.infection_state_delta.exposed_rnb != -1.:
+                        for vals in person.state.not_infection_probability_delta_history:
+                            if person.state.infection_state_delta.exposed_rnb < 1 - vals[1]:
+                                infection_location = vals[0]
+                                break
 
-                    person_location_type = self._registry.location_id_to_type(infection_location)
-                    self._state.location_type_infection_summary[person_location_type] += 1
+                        person_location_type = self._registry.location_id_to_type(infection_location)
+                        self._state.location_type_infection_summary[person_location_type] += 1
 
                 global_infection_summary[get_infection_summary(person.state)] += 1
                 person.state.not_infection_probability = 1.

@@ -45,6 +45,8 @@ def get_infection_summary(person_state: PersonState) -> InfectionSummary:
     if person_state.infection_state is not None or person_state.infection_state_delta is not None:
         state = cast(IndividualInfectionState, person_state.infection_state)
         state_delta = cast(IndividualInfectionState, person_state.infection_state_delta)
+        if state_delta is None:
+            return state.summary
         if state.summary == InfectionSummary.NONE and state_delta.summary == InfectionSummary.NONE:
             return InfectionSummary.NONE
         elif state.summary == InfectionSummary.DEAD or state_delta.summary == InfectionSummary.DEAD:

@@ -8,10 +8,16 @@ __all__ = ['PandemicSimOpts']
 class PandemicSimOpts:
     """Parameter options passed to the simulator."""
 
-    infection_spread_rate_mean: float = 0.03
+    infection_spread_rate_mean: float = 0.021
     """Mean for the bounded-gaussian infection spread rate distribution"""
 
     infection_spread_rate_sigma: float = 0.01
+    """Std for the bounded-gaussian infection spread rate distribution"""
+
+    infection_delta_spread_rate_mean: float = 0.03
+    """Mean for the bounded-gaussian infection spread rate distribution"""
+
+    infection_delta_spread_rate_sigma: float = 0.01
     """Std for the bounded-gaussian infection spread rate distribution"""
 
     spontaneous_testing_rate: float = 0.02
