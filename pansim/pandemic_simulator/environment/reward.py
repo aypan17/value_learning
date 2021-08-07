@@ -9,7 +9,7 @@ import numpy as np
 __all__ = ['RewardFunction', 'RewardFunctionType', 'RewardFunctionFactory', 'SumReward',
            'UnlockedBusinessLocationsReward', 'InfectionSummaryIncreaseReward',
            'InfectionSummaryAboveThresholdReward', 'LowerStageReward', 'InfectionSummaryAbsoluteReward',
-           'SmoothStageChangesReward', 'ElderlyHospitalizedReward']
+           'SmoothStageChangesReward', 'ElderlyHospitalizedReward', 'AverageStageReward']
 
 from .interfaces import PandemicObservation, InfectionSummary, sorted_infection_summary
 
@@ -29,6 +29,7 @@ class RewardFunctionType(enum.Enum):
     INFECTION_SUMMARY_ABSOLUTE = 'infection_summary_absolute'
     UNLOCKED_BUSINESS_LOCATIONS = 'unlocked_business_locations'
     LOWER_STAGE = 'lower_stage'
+    AVERAGE_STAGE = 'average_stage'
     SMOOTH_STAGE_CHANGES = 'smooth_stage_changes'
     ELDERLY_HOSPITALIZED = 'elderly_hospitalized'
 
@@ -177,6 +178,20 @@ class LowerStageReward(RewardFunction):
         return -float(self._stage_rewards[action])
 
 
+class AverageStageReward(RewardFunction):
+    """Returns a negative reward that is higher the average stage is."""
+    _num_stages: int 
+
+    def __init__(self, num_stages: int, *args: Any, **kwargs: Any):
+        """
+        :param num_stages: total number of stages
+        """
+        super().__init__(*args, **kwargs)
+        self._num_stages = num_stages
+
+    def calculate_reward(self, prev_obs: PandemicObservation, action: int, obs: PandemicObservation) -> float:
+        return -float(obs.state.regulation_stage_sum / self._num_stages)
+
 class SmoothStageChangesReward(RewardFunction):
 
     def __init__(self, num_stages: int, *args: Any, **kwargs: Any):
@@ -203,5 +218,6 @@ _register_reward(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD, Infection
 _register_reward(RewardFunctionType.INFECTION_SUMMARY_ABSOLUTE, InfectionSummaryAbsoluteReward)
 _register_reward(RewardFunctionType.UNLOCKED_BUSINESS_LOCATIONS, UnlockedBusinessLocationsReward)
 _register_reward(RewardFunctionType.LOWER_STAGE, LowerStageReward)
+_register_reward(RewardFunctionType.AVERAGE_STAGE, AverageStageReward)
 _register_reward(RewardFunctionType.SMOOTH_STAGE_CHANGES, SmoothStageChangesReward)
 _register_reward(RewardFunctionType.ELDERLY_HOSPITALIZED, ElderlyHospitalizedReward)

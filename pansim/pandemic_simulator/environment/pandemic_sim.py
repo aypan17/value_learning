@@ -60,7 +60,8 @@ class PandemicSim:
                  person_routine_assignment: Optional[PersonRoutineAssignment] = None,
                  infection_threshold: int = 0,
                  hospital_capacity: int = 0,
-                 delta_start: int = 366):
+                 delta_start_lo: int = 366,
+                 delta_start_hi: int = 367):
         """
         :param locations: A sequence of Location instances.
         :param persons: A sequence of Person instances.
@@ -90,7 +91,9 @@ class PandemicSim:
         self._new_time_slot_interval = new_time_slot_interval
         self._infection_update_interval = infection_update_interval
         self._infection_threshold = infection_threshold
-        self._delta_start = delta_start
+        self._delta_start_lo = delta_start_lo
+        self._delta_start_hi = delta_start_hi
+        self._delta_start = self._numpy_rng.randint(self._delta_start_lo, self._delta_start_hi)
 
         self._type_to_locations = defaultdict(list)
         for loc in locations:
@@ -129,6 +132,7 @@ class PandemicSim:
             global_location_summary=self._registry.global_location_summary,
             sim_time=SimTime(),
             regulation_stage=0,
+            regulation_stage_sum=0,
             infection_above_threshold=False
         )
 
@@ -186,7 +190,8 @@ class PandemicSim:
                            infection_threshold=sim_opts.infection_threshold,
                            person_routine_assignment=sim_config.person_routine_assignment,
                            hospital_capacity=sim_config.max_hospital_capacity,
-                           delta_start=sim_config.delta_start)
+                           delta_start_lo=sim_config.delta_start_lo,
+                           delta_start_hi=sim_config.delta_start_hi)
 
     @property
     def registry(self) -> Registry:
@@ -318,10 +323,11 @@ class PandemicSim:
         """Returns an observation of the current state of the simulator. Used to update regulation specifics."""
         time = [float(self._state.sim_time.day / 365)]
         stage = [int(self._state.regulation_stage)]
+        stage_sum = [0] if self._state.regulation_stage_sum == 0 else [float(self._state.regulation_stage_sum / self._state.sim_time.day)]
         threshold_reached = [int(self._state.infection_above_threshold)]
         #hospitalizations = [max(self._max_hospital_capacity, self._state.global_infection_summary.get(InfectionSummary.CRITICAL))]
         test_results = [self._state.global_testing_state.summary.get(s) for s in sorted_infection_summary]
-        summary = np.array(time + stage + threshold_reached + test_results)
+        summary = np.array(time + stage + stage_sum + threshold_reached + test_results)
         return summary
 
         # loc_data = []
@@ -466,6 +472,7 @@ class PandemicSim:
             person.receive_regulation(regulation)
 
         self._state.regulation_stage = regulation.stage
+        self._state.regulation_stage_sum += regulation.stage
 
     @property
     def state(self) -> PandemicSimState:
@@ -498,5 +505,8 @@ class PandemicSim:
                                                     num_tests=0),
             sim_time=SimTime(),
             regulation_stage=0,
+            regulation_stage_sum=0,
             infection_above_threshold=False,
         )
+        self._delta_start = self._numpy_rng.randint(self._delta_start_lo, self._delta_start_hi)
+

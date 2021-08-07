@@ -44,5 +44,8 @@ class PandemicSimState:
     regulation_stage: int
     """The last executed regulation stage"""
 
+    regulation_stage_sum: int
+    """Sum of all executed regulation stages"""
+
     sim_time: SimTime
     """Current simulation time"""
