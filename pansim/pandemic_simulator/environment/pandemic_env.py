@@ -191,8 +191,8 @@ class PandemicGymEnv(gym.Env):
         done = self._done_fn.calculate_done(obs, action) if self._done_fn else False
         self._last_observation = obs
 
-        return self._last_observation, self._last_reward, done, {}
-        #return self._pandemic_sim.poll(), self._last_reward, done, {}
+        #return self._last_observation, self._last_reward, done, {}
+        return self._pandemic_sim.poll(), self._last_reward, done, {}
         #return self.observe, self._last_reward, done, {}
 
     def reset(self) -> PandemicObservation:
@@ -294,7 +294,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
                                               threshold=3 * sim_config.max_hospital_capacity),
-                RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
+                RewardFunctionFactory.default(RewardFunctionType.AVERAGE_STAGE,
                                               num_stages=len(pandemic_regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
                                               num_stages=len(pandemic_regulations))

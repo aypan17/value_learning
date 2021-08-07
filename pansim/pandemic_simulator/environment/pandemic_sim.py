@@ -326,7 +326,7 @@ class PandemicSim:
         stage_sum = [0] if self._state.regulation_stage_sum == 0 else [float(self._state.regulation_stage_sum / self._state.sim_time.day)]
         threshold_reached = [int(self._state.infection_above_threshold)]
         #hospitalizations = [max(self._max_hospital_capacity, self._state.global_infection_summary.get(InfectionSummary.CRITICAL))]
-        test_results = [self._state.global_testing_state.summary.get(s) for s in sorted_infection_summary]
+        test_results = [self._state.global_testing_state.summary.get(s) / len(self._persons) for s in sorted_infection_summary]
         summary = np.array(time + stage + stage_sum + threshold_reached + test_results)
         return summary
 
