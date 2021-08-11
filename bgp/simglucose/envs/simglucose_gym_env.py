@@ -19,6 +19,9 @@ from gym.utils import seeding
 from datetime import datetime
 import warnings
 
+from copy import deepcopy
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class DeepSACT1DEnv(gym.Env):
@@ -65,6 +68,7 @@ class DeepSACT1DEnv(gym.Env):
             else:
                 patient_name = 'adolescent#001'
         np.random.seed(seeds['numpy'])
+
         self.seeds = seeds
         self.sample_time = 5
         self.day = int(1440 / self.sample_time)
@@ -129,6 +133,7 @@ class DeepSACT1DEnv(gym.Env):
         self.use_custom_meal = use_custom_meal
         self.custom_meal_num = custom_meal_num
         self.custom_meal_size = custom_meal_size
+        self.patient_name = patient_name
         self.set_patient_dependent_values(patient_name)
         self.env.scenario.day = 0
 
@@ -297,14 +302,17 @@ class DeepSACT1DEnv(gym.Env):
             if self.limited_gt:
                 state = np.array([state[3], self.calculate_iob()])
             return state
-        return np.stack(return_arr).flatten()
+        return np.stack(return_arr)#.flatten()
 
+    @property
     def avg_risk(self):
         return np.mean(self.env.risk_hist[max(self.state_hist, 288):])
 
+    @property
     def avg_magni_risk(self):
         return np.mean(self.env.magni_risk_hist[max(self.state_hist, 288):])
 
+    @property
     def glycemic_report(self):
         bg = np.array(self.env.BG_hist[max(self.state_hist, 288):])
         ins = np.array(self.env.insulin_hist[max(self.state_hist, 288):])
@@ -317,6 +325,12 @@ class DeepSACT1DEnv(gym.Env):
         return self.env.BG_hist[-1] < self.reset_lim['lower_lim'] or self.env.BG_hist[-1] > self.reset_lim['upper_lim']
 
     def increment_seed(self, incr=1):
+        # if type(self.seeds) == Seed:
+        #     seed = self.seeds
+        #     self.seeds = {}
+        #     self.seeds['numpy'] = seed.numpy_seed
+        #     self.seeds['scenario'] = seed.scenario_seed
+        #     self.seeds['sensor'] = seed.sensor_seed 
         self.seeds['numpy'] += incr
         self.seeds['scenario'] += incr
         self.seeds['sensor'] += incr
@@ -467,6 +481,26 @@ class DeepSACT1DEnv(gym.Env):
         if self.gt:
             return spaces.Box(low=0, high=np.inf, shape=(len(st),))
         else:
-            num_channels = int(len(st)/self.state_hist)
+            num_channels = int(np.prod(st.shape)/self.state_hist)
             return spaces.Box(low=0, high=np.inf, shape=(num_channels, self.state_hist))
 
+    def get_single_env(self):
+        def get_self():
+            s = deepcopy(self)
+            return s
+
+        e = DummyVecEnv([get_self])
+        obs = e.reset()
+        return e
+
+    def get_multi_env(self, n=10):
+        def get_self():
+            s = deepcopy(self)
+            seed_list = s._seed()
+            s.seeds = {'numpy': seed_list[0], 'sensor': seed_list[1], 'scenario': seed_list[2]}
+            s.set_patient_dependent_values(s.patient_name)
+            return s
+
+        e = SubprocVecEnv([get_self for i in range(n)], start_method="fork")
+        obs = e.reset()
+        return e

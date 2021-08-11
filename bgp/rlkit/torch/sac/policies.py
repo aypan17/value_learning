@@ -287,7 +287,7 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
 
     def get_action(self, obs_np, deterministic=False):
         actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {}
+        return actions.flatten(), {}
 
     def get_actions(self, obs_np, deterministic=False):
         return self.eval_np(obs_np, deterministic=deterministic)[0]
@@ -309,6 +309,7 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
         h, _ = self.features(obs)
         feat = h[:, -1, :]
         mean = self.last_fc(feat)
+
         if self.std is None:
             log_std = self.last_fc_log_std(feat)
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
@@ -316,7 +317,7 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
         else:
             std = self.std
             log_std = self.log_std
-
+        
         log_prob = None
         entropy = None
         mean_action_log_prob = None
@@ -344,7 +345,6 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
                     action = tanh_normal.rsample()
                 else:
                     action = tanh_normal.sample()
-
         return (
             action, mean, log_std, log_prob, entropy, std,
             mean_action_log_prob, pre_tanh_value,

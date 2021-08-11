@@ -41,6 +41,7 @@ class PathBuilder(dict):
                 self[k] = [v]
             else:
                 self[k].append(v)
+            assert False
         self._path_length += 1
 
     def get_all_stacked(self):

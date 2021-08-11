@@ -23,7 +23,7 @@ class TanhNormal(Distribution):
         self.epsilon = epsilon
 
     def sample_n(self, n, return_pre_tanh_value=False):
-        z = self.normal.sample_n(n)
+        z = self.normal.sample_n(n).detach()
         if return_pre_tanh_value:
             return torch.tanh(z), z
         else:

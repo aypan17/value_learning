@@ -70,8 +70,10 @@ def get_best_itr(variant, max=None, seed=None, use_min=True):
     pcache = progress.iloc[np.array(cached_itrs)]
     # first, restrict search to entries that maximize length alive
     pcache_filter = pcache[pcache['GLen'] == pcache['GLen'].max()]
+    pcache_filter["Test Rewards Mean"] = pd.to_numeric(pcache_filter["Test Rewards Mean"])
     # second, try to enforce some safety constraints
     if 'MinBG' in pcache_filter and use_min:
+        pcache_filter["MinBG"] = pd.to_numeric(pcache_filter["MinBG"])
         print('Using Min {}'.format(use_min))
         if use_min is True:
             min_lvl = 30
@@ -82,6 +84,7 @@ def get_best_itr(variant, max=None, seed=None, use_min=True):
                 min_lvl = pcache_filter['MinBG'].max() * 0.9
         except:
             print(min_lvl, type(min_lvl), pcache_filter['MinBG'].max())
+
         pcache_filter = pcache_filter[pcache_filter['MinBG'] >= min_lvl]
     # third, choose most performant policy
     best_itr = pcache_filter['Test Rewards Mean'].idxmax()
@@ -196,7 +199,6 @@ def simulate_policy(variant, itr=None, save_q=False, cpu_only=False, gpu_remap=N
         adv_save = q_save - np.max(q_save, axis=1)[:, None]
         return env.env.show_history(), q_save, adv_save
     else:
-
         return env.env.show_history()
 
 def run_em_sac(variant):
@@ -240,8 +242,11 @@ def run_em_sac(variant):
                                 reward_bias=variant['reward_bias'], carb_error_std=variant['carb_error_std'],
                                 carb_miss_prob=variant['carb_miss_prob'], source_dir=variant['source_dir'],
                                 true_reward_fn=true_reward_fn)
+    n_cpus = variant['algo_params']['n_cpus']
+    env = env.get_multi_env(n=n_cpus) if n_cpus > 1 else env.get_single_env()
 
     obs_dim = env.observation_space.shape
+    #obs_dim = (2, np.prod(obs_dim) / 2)
     action_dim = int(np.prod(env.action_space.shape))
 
     if variant['use_ground_truth']:

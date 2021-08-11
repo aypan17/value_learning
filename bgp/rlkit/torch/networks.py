@@ -359,6 +359,29 @@ class SimpleGRUQ(PyTorchModule):
         feat = h[:, -1, :]
         return self.last_fc(feat)
 
+    # def forward(self, input, action_input=None):
+    #     print()
+    #     if action_input is not None:
+    #         input = input.reshape(-1, self.channel_size-1, self.signal_length).permute(0, 2, 1)
+    #         action_stack = tuple(action_input.flatten() for _ in range(self.signal_length))
+    #         action_stack = torch.stack(action_stack).transpose(0, 1).unsqueeze(2)#[:, :, None].float()
+    #         print(action_stack.size())
+    #         input = torch.cat((action_stack, input), dim=2)
+    #         print(input.size())
+    #     else:
+    #         input = input.reshape(-1, self.channel_size, self.signal_length).permute(0, 2, 1)
+    #     h, _ = self.features(input)
+    #     #print(input.size())
+    #     a = torch.nn.Linear(4, 3)
+    #     #b = torch.nn.Linear(3, 4)
+    #     #h = b(input)
+    #     print(h.size())
+    #     feat = h[:, -1, :]
+    #     print(feat.size())
+    #     a = torch.nn.Linear(4, 3)
+    #     return a(feat)
+    #     return self.last_fc(feat)
+
 
 class Mlp(PyTorchModule):
     def __init__(

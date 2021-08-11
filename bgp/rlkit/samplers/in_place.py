@@ -32,6 +32,7 @@ class InPlacePathSampler(object):
             path = rollout(
                 self.env, self.policy, max_path_length=self.max_path_length
             )
-            paths.append(path)
-            n_steps_total += len(path['observations'])
+            for p in path:
+                paths.append(p)
+            n_steps_total += len(path[0]['actions']) * len(path)
         return paths

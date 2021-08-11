@@ -16,6 +16,8 @@ from bgp.rlkit.samplers.in_place import InPlacePathSampler
 import wandb
 
 
+### NOTE: removed current_path_builder as it was only logging ###
+
 class RLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
             self,
@@ -36,13 +38,14 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             render=False,
             save_replay_buffer=False,
             save_algorithm=False,
-            save_environment=True,
+            save_environment=False,
             save_optim=False,
             eval_sampler=None,
             eval_policy=None,
             replay_buffer=None,
             collection_mode='online',
             device='cpu',
+            n_cpus=1,
             validation_seed_offset=1000000,
     ):
         """
@@ -79,7 +82,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         if collection_mode == 'batch':
             assert num_updates_per_epoch is not None
 
-        self.training_env = training_env or pickle.loads(pickle.dumps(env))
+        self.training_env = env#training_env or pickle.loads(pickle.dumps(env))
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
@@ -108,8 +111,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             eval_sampler = InPlacePathSampler(
                 env=env,
                 policy=eval_policy,
-                max_samples=self.num_steps_per_eval,
-                max_path_length=self.num_steps_per_eval,
+                max_samples=self.num_steps_per_eval // n_cpus,
+                max_path_length=self.num_steps_per_eval // n_cpus,
             )
         self.eval_policy = eval_policy
         self.eval_sampler = eval_sampler
@@ -119,7 +122,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.action_space = env.action_space
         self.obs_space = env.observation_space
         self.env = env
-        self.env.increment_seed(validation_seed_offset)  # This is a pretty big assumption
+        #self.env.increment_seed(validation_seed_offset)  # This is a pretty big assumption
         if replay_buffer is None:
             replay_buffer = EnvReplayBuffer(
                 self.replay_buffer_size,
@@ -133,11 +136,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self._epoch_start_time = None
         self._algo_start_time = None
         self._old_table_keys = None
-        self._current_path_builder = PathBuilder()
+        #self._current_path_builder = PathBuilder()
         self._exploration_paths = []
         self.post_epoch_funcs = []
         self.device = device
         self.best_risk = np.inf
+        self.n_cpus=n_cpus
 
     def train(self, start_epoch=0):
         self.pretrain()
@@ -164,7 +168,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
 
     def train_online(self, start_epoch=0):
         wandb.init(project="value-learning", group="glucose", entity="aypan17")
-        self._current_path_builder = PathBuilder()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
                 save_itrs=True,
@@ -172,7 +175,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             self._start_epoch(epoch)
             set_to_train_mode(self.training_env)
             observation = self._start_new_rollout()  # This resets the environment, new env each batch...
-            for _ in tqdm(range(self.num_env_steps_per_epoch)):
+            for _ in tqdm(range(self.num_env_steps_per_epoch // self.n_cpus)):
                 observation = self._take_step_in_env(observation)
                 gt.stamp('sample')
 
@@ -218,8 +221,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         )
         self._n_env_steps_total += 1
         reward = raw_reward * self.reward_scale
-        terminal = np.array([terminal])
-        reward = np.array([reward])
         self._handle_step(
             observation,
             action,
@@ -229,11 +230,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             agent_info=agent_info,
             env_info=env_info,
         )
-        if terminal or len(self._current_path_builder) >= self.max_path_length:
-            self._handle_rollout_ending()
-            new_observation = self._start_new_rollout()
-        else:
-            new_observation = next_ob
+        # When using VecEnv from stable_baselines, no need to reset bc done automatically
+        # if terminal: or len(self._current_path_builder) >= self.max_path_length:
+        #     self._handle_rollout_ending()
+        #     new_observation = self._start_new_rollout()
+        # else:
+        new_observation = next_ob
         return new_observation
 
     def _try_to_train(self):
@@ -301,8 +303,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         validation and training set.
         """
         return (
-            len(self._exploration_paths) > 0
-            and not self.need_to_update_eval_statistics
+            not self.need_to_update_eval_statistics
         )
 
     def _can_train(self):
@@ -390,15 +391,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         Implement anything that needs to happen after every step
         :return:
         """
-        self._current_path_builder.add_all(
-            observations=observation,
-            actions=action,
-            rewards=reward,
-            next_observations=next_observation,
-            terminals=terminal,
-            agent_infos=agent_info,
-            env_infos=env_info,
-        )
         self.replay_buffer.add_sample(
             observation=observation,
             action=action,
@@ -415,11 +407,6 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         """
         self.replay_buffer.terminate_episode()
         self._n_rollouts_total += 1
-        if len(self._current_path_builder) > 0:
-            self._exploration_paths.append(
-                self._current_path_builder.get_all_stacked()
-            )
-            self._current_path_builder = PathBuilder()
 
     def get_epoch_snapshot(self, epoch):
         data_to_save = dict(
@@ -477,30 +464,33 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics.update(eval_util.get_generic_path_information(
             test_paths, stat_prefix="Test",
         ))
-        if len(self._exploration_paths) > 0:
-            statistics.update(eval_util.get_generic_path_information(
-                self._exploration_paths, stat_prefix="Exploration",
-            ))
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(test_paths, logger=logger)
         if hasattr(self.env, "get_diagnostics"):
             statistics.update(self.env.get_diagnostics(test_paths))
-        statistics['Risk'] = self.env.avg_risk()
-        statistics['MagniRisk'] = self.env.avg_magni_risk()
-        bg, euglycemic, hypo, hyper, ins = self.env.glycemic_report()
+        statistics['Risk'] = np.mean(self.env.get_attr('avg_risk'))
+        statistics['MagniRisk'] = np.mean(self.env.get_attr('avg_magni_risk'))
+
+        gylcemic_report = self.env.get_attr('glycemic_report')
+        bg = np.array([r[0] for r in gylcemic_report])
+        euglycemic = np.mean([r[1] for r in gylcemic_report])
+        hypo = np.mean([r[2] for r in gylcemic_report])
+        hyper = np.mean([r[3] for r in gylcemic_report])
+        ins = np.array([r[4] for r in gylcemic_report])
         statistics['Glucose'] = np.mean(bg)
-        statistics['MinBG'] = min(bg)
-        statistics['MaxBG'] = max(bg)
+        statistics['MinBG'] = np.mean([min(b) for b in bg])
+        statistics['MaxBG'] = np.mean([max(b) for b in bg])
         statistics['Insulin'] = np.mean(ins)
-        statistics['MinIns'] = min(ins)
-        statistics['MaxIns'] = max(ins)
-        statistics['GLen'] = len(bg)
+        statistics['MinIns'] = np.mean([min(i) for i in ins])
+        statistics['MaxIns'] = np.mean([min(i) for i in ins])
+        statistics['GLen'] = len(bg[0])
         statistics['Euglycemic'] = euglycemic
         statistics['Hypoglycemic'] = hypo
         statistics['Hyperglycemic'] = hyper
+
         average_returns = eval_util.get_average_returns(test_paths)
         true_returns = eval_util.get_average_true_returns(test_paths)
-        fail_prop = eval_util.get_failed_episodes(test_paths)
+        fail_prop = np.mean(np.any(bg < 5, axis=0)) # Catastrophic failure occurs if blood glucose level falls below 5 dg / mL
         statistics['AverageReturn'] = average_returns
         statistics['TrueReturn'] = true_returns
         statistics['CatastrophicProportion'] = fail_prop

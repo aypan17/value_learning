@@ -149,7 +149,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         Policy Loss
         """
         if self.train_policy_with_reparameterization:
-            policy_loss = (alpha*log_pi - q_new_actions).mean()
+            policy_loss = (alpha*log_pi - q_new_actions).detach().mean()
         else:
             log_policy_target = q_new_actions - v_pred
             policy_loss = (
@@ -178,11 +178,11 @@ class SoftActorCritic(TorchRLAlgorithm):
         if self.gradient_max_value is not None:
             nn.utils.clip_grad_value_(self.vf.parameters(), self.gradient_max_value)
         self.vf_optimizer.step()
-
+        
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         if self.gradient_max_value is not None:
-            nn.utils.clip_grad_value_(self.policy.parameters(), self.gradient_max_value)
+            nn.utils.clip_grad_value_(self.policy.parameters(), self.gradient_max_value)        
         self.policy_optimizer.step()
 
         self._update_target_network()
