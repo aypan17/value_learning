@@ -168,7 +168,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     def train_online(self, start_epoch=0):
-        #wandb.init(project="value-learning", group="glucose", entity="aypan17")
+        wandb.init(project="value-learning", group="glucose", entity="aypan17")
         #self._current_path_builder = PathBuilder()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
@@ -218,11 +218,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         )
         if self.render:
             self.training_env.render()
-        print(action)
         next_ob, raw_reward, terminal, env_info = (
             self.training_env.step(action)
         )
-        assert False
         self._n_env_steps_total += 1
         reward = raw_reward * self.reward_scale
         self._handle_step(
@@ -234,13 +232,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
             agent_info=agent_info,
             env_info=env_info,
         )
-        assert False
         # When using VecEnv from stable_baselines, no need to reset bc done automatically
-        if any(terminal): #or len(self._current_path_builder) >= self.max_path_length:
-            self._handle_rollout_ending()
-            new_observation = self._start_new_rollout()
-        else:
-            new_observation = next_ob
+        # if any(terminal): #or len(self._current_path_builder) >= self.max_path_length:
+        #     self._handle_rollout_ending()
+        #     new_observation = self._start_new_rollout()
+        # else:
+        new_observation = next_ob
         return new_observation
 
     def _try_to_train(self):

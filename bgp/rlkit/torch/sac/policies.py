@@ -287,8 +287,7 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
 
     def get_action(self, obs_np, deterministic=False):
         actions = self.get_actions(obs_np[None], deterministic=deterministic)
-       # print(actions)
-        return actions[0, :], {}#actions.flatten(), {}
+        return actions.flatten(), {}
 
     def get_actions(self, obs_np, deterministic=False):
         return self.eval_np(obs_np, deterministic=deterministic)[0]

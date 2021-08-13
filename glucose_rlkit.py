@@ -1,5 +1,4 @@
 import os
-import shutil
 import sys
 from collections import OrderedDict
 import itertools
@@ -30,7 +29,7 @@ print(base_name)
 # Harware config
 debug = True #sys.argv[6].lower() == 'true'
 device_list = ['cuda:0']  # list of cuda device ids or None for cpu
-device = 'cpu' #'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
+device = 'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
 n_cpus = int(sys.argv[5])
 
 # General utility parameters

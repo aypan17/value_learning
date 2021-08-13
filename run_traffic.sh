@@ -7,7 +7,7 @@
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
 # #SBATCH -w shadowfax
-#SBATCH -p 'high_pre'
+# #SBATCH -p 'high_pre'
 
 # set -x
 
