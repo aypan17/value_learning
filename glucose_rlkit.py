@@ -27,7 +27,7 @@ source_path = './'  # the path to the location of the folder 'bgp' which contain
 print(base_name)
 
 # Harware config
-debug = True #sys.argv[6].lower() == 'true'
+debug = sys.argv[6].lower() == 'true'
 device_list = ['cuda:0']  # list of cuda device ids or None for cpu
 device = 'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
 n_cpus = int(sys.argv[5])
@@ -137,8 +137,8 @@ for setting in itertools.product(*option_dict.values()):
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
-            num_updates_per_env_step=n_cpus,
-            batch_size=3,#256,
+            #num_updates_per_env_step=n_cpus,
+            batch_size=256,
             max_path_length=num_steps_per_epoch,
             discount=discount,
             reward_scale=1,
@@ -232,18 +232,6 @@ for tup in tuples:
     variant, run_func = tup
     run_func(variant=variant)
 
-# if debug:
-#     for tup in tuples:
-#         variant, run_func = tup
-#         run_func(variant=variant)
-    
-# elif device_list is not None:
-#     run_manager = experiments.RLKitRunManager(device_list=device_list, run_func=run_func)
-#     for c in tuples:
-#         run_manager.add_job(c)
-#     run_manager.run_until_empty(10)
-
 print('Finished {}'.format(base_name))
 print('Total Time:', timedelta(seconds=time.time()-t_start))
-#if debug:
-#    shutil.rmtree(full_path)
+
