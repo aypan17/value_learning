@@ -87,7 +87,7 @@ def parse_args(args):
         '--num_steps', type=int, default=1024*100,
         help='how many total steps to perform learning over')
     parser.add_argument(
-        '--eval_freq', type=int, default=500,
+        '--eval_freq', type=int, default=2500,
         help='how frequently to evaluate')
     parser.add_argument(
         '--rollout_size', type=int, default=1024,

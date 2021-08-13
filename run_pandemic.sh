@@ -6,7 +6,7 @@
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
-#SBATCH -p 'high_pre'
+#SBATCH -p 'jsteinhardt'
 # #SBATCH -w shadowfax
 
 set -x 
@@ -23,12 +23,16 @@ ALPHA=$2
 BETA=$3
 GAMMA=$4
 DELTA=$5
-DISCOUNT=$6
-WIDTH=$7
-DEPTH=$8
+LO=$6
+HI=$7
+DISCOUNT=$8
+WIDTH=$9
+DEPTH=${10}
 
 if [ "${NAME}" = "sacd" ]; then
-	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" --sacd
+	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $LO $HI 0 0 $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" --sacd
+elif [ "${NAME}" = "test" ]; then
+	python3 pandemic_test.py $NAME 0 0 0 0 95 105 32 3 0.99 --n_cpus "$SLURM_CPUS_PER_TASK"
 else
-	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $DISCOUNT $WIDTH $DEPTH --n_cpus "$SLURM_CPUS_PER_TASK" 
+	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $LO $HI $WIDTH $DEPTH $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" 
 fi

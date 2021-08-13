@@ -141,20 +141,31 @@ class SEIRModel(InfectionModel):
                  from_needs_hosp_to_death_rate: float = 0.3,
                  from_hosp_to_death_rate: Optional[float] = None,
                  spread_probability_params: Optional[SpreadProbabilityParams] = None,
-                 pandemic_start_limit: int = 5):
+                 pandemic_start_limit: int = 6):
         self._numpy_rng = globals.numpy_rng
         assert self._numpy_rng, 'No numpy rng found. Either pass a rng or set the default repo wide rng.'
 
-        exposed_rate = 1. / self._numpy_rng.triangular(1.9, 2.9, 3.9) if exposed_rate is None else exposed_rate
-        recovery_rate_asymp = 1. / self._numpy_rng.triangular(3.0, 4.0, 5.0) if recovery_rate_asymp is None else \
+        exposed_rate = 1. / self._numpy_rng.triangular(2.8, 2.9, 3.0) if exposed_rate is None else exposed_rate
+        recovery_rate_asymp = 1. / self._numpy_rng.triangular(3.9, 4.0, 4.9) if recovery_rate_asymp is None else \
             recovery_rate_asymp
-        recovery_rate_symp_non_treated = 1. / self._numpy_rng.triangular(3.0, 4.0, 5.0) \
+        recovery_rate_symp_non_treated = 1. / self._numpy_rng.triangular(3.9, 4.0, 4.1) \
             if recovery_rate_symp_non_treated is None else recovery_rate_symp_non_treated
 
-        recovery_rate_hosp = 1. / self._numpy_rng.triangular(9.4, 10.7, 12.8) if recovery_rate_hosp is None \
+        recovery_rate_hosp = 1. / self._numpy_rng.triangular(10.6, 10.7, 10.9) if recovery_rate_hosp is None \
             else recovery_rate_hosp
-        from_hosp_to_death_rate = 1. / self._numpy_rng.triangular(5.2, 8.1, 10.1) if from_hosp_to_death_rate is None \
+        from_hosp_to_death_rate = 1. / self._numpy_rng.triangular(7.8, 8.1, 8.2) if from_hosp_to_death_rate is None \
             else from_hosp_to_death_rate
+
+        # exposed_rate = 1. / self._numpy_rng.triangular(1.9, 2.9, 3.9) if exposed_rate is None else exposed_rate
+        # recovery_rate_asymp = 1. / self._numpy_rng.triangular(3.0, 4.0, 5.0) if recovery_rate_asymp is None else \
+        #     recovery_rate_asymp
+        # recovery_rate_symp_non_treated = 1. / self._numpy_rng.triangular(3.0, 4.0, 5.0) \
+        #     if recovery_rate_symp_non_treated is None else recovery_rate_symp_non_treated
+
+        # recovery_rate_hosp = 1. / self._numpy_rng.triangular(9.4, 10.7, 12.8) if recovery_rate_hosp is None \
+        #     else recovery_rate_hosp
+        # from_hosp_to_death_rate = 1. / self._numpy_rng.triangular(5.2, 8.1, 10.1) if from_hosp_to_death_rate is None \
+        #     else from_hosp_to_death_rate
 
         hosp_rate_symp = hosp_rate_symp if hosp_rate_symp else _DEFAULT_HOSP_RATE_SYMP
         hosp_rate_symp = defaultdict(lambda: 1., hosp_rate_symp)

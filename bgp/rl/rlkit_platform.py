@@ -40,6 +40,8 @@ def reward_name_to_function(reward_name):
         reward_fun = reward_functions.risk_insulin
     elif reward_name == 'magni_bg_insulin':
         reward_fun = reward_functions.magni_bg_insulin
+    elif reward_name == 'magni_bg_insulin_true':
+        reward_fun = reward_functions.magni_bg_insulin_true
     else:
         raise ValueError('{} not a proper reward_name'.format(reward_name))
     return reward_fun
@@ -207,6 +209,7 @@ def run_em_sac(variant):
         torch.manual_seed(variant['independent_init'])
     else:
         torch.manual_seed(variant['base_seed'])
+    print(variant['snapshot_gap'])
     setup_logger(variant['run_name'], variant=variant, log_dir=variant['log_dir'],
                  snapshot_mode='gap_and_last', snapshot_gap=variant['snapshot_gap'])
     # why no eval environment?
@@ -246,7 +249,6 @@ def run_em_sac(variant):
     env = env.get_multi_env(n=n_cpus) if n_cpus > 1 else env.get_single_env()
 
     obs_dim = env.observation_space.shape
-    #obs_dim = (2, np.prod(obs_dim) / 2)
     action_dim = int(np.prod(env.action_space.shape))
 
     if variant['use_ground_truth']:

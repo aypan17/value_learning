@@ -359,7 +359,7 @@ class Logger(object):
                 if mdl.stochastic_policy.features is not None:
                     mdl.stochastic_policy.features.device = orig_run_device
                     mdl.stochastic_policy.features = mdl.stochastic_policy.features.to(orig_run_device)
-                cache_file_name = osp.join(self._snapshot_dir, 'cache_itr.pkl')
+                cache_file_name = osp.join(self._snapshot_dir, 'cache.pkl')
                 policy_cache = params['policy'].cpu().state_dict()
                 qf_cache = params['qf'].cpu().state_dict()
                 vf_cache = params['vf'].cpu().state_dict()
@@ -368,7 +368,7 @@ class Logger(object):
                 joblib.dump({'policy': policy_cache, 'qf': qf_cache, 'vf': vf_cache, 'target_vf': target_vf_cache,
                              'alpha': alpha_cache},
                             cache_file_name)
-                optim_file_name = osp.join(self._snapshot_dir, 'optim_itr.pkl')
+                optim_file_name = osp.join(self._snapshot_dir, 'optim.pkl')
                 qf_optim = params['qf_optim'].state_dict()
                 vf_optim = params['vf_optim'].state_dict()
                 policy_optim = params['policy_optim'].state_dict()

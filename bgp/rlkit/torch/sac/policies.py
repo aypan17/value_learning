@@ -287,7 +287,8 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
 
     def get_action(self, obs_np, deterministic=False):
         actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions.flatten(), {}
+       # print(actions)
+        return actions[0, :], {}#actions.flatten(), {}
 
     def get_actions(self, obs_np, deterministic=False):
         return self.eval_np(obs_np, deterministic=deterministic)[0]
@@ -304,6 +305,7 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
         """
+        #print(obs)
         obs = obs.reshape((-1, self.channel_size, self.signal_length))
         obs = obs.transpose(1, 2)
         h, _ = self.features(obs)
@@ -317,7 +319,7 @@ class GRUTanhGaussianPolicy(SimpleGRUQ, ExplorationPolicy):
         else:
             std = self.std
             log_std = self.log_std
-        
+
         log_prob = None
         entropy = None
         mean_action_log_prob = None

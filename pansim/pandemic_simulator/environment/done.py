@@ -148,7 +148,7 @@ class TimeLimitDone(DoneFunction):
         self._horizon = horizon 
 
     def calculate_done(self, obs: PandemicObservation, action: int) -> bool:
-        return obs.time_day.item() > self._horizon 
+        return obs.state.sim_time.day > self._horizon 
 
 
 _register_done(DoneFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD, InfectionSummaryAboveThresholdDone)

@@ -16,28 +16,31 @@ import argparse
 
 from sacd.agent import SacdAgent, SharedSacdAgent
 
-GAMMA = float(sys.argv[6])
+GAMMA = float(sys.argv[10])
 
 def make_cfg():
-    cfg =  ps.sh.small_town_config
-    cfg["delta_start"] = 64
-    return cfg
-    # sim_config = ps.env.PandemicSimConfig(
-    #     num_persons=500,
-    #     location_configs=[
-    #         ps.env.LocationConfig(ps.env.Home, num=150),
-    #         ps.env.LocationConfig(ps.env.GroceryStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
-    #         ps.env.LocationConfig(ps.env.Office, num=2, num_assignees=150, state_opts=dict(visitor_capacity=0)),
-    #         ps.env.LocationConfig(ps.env.School, num=10, num_assignees=2, state_opts=dict(visitor_capacity=30)),
-    #         ps.env.LocationConfig(ps.env.Hospital, num=1, num_assignees=15, state_opts=dict(patient_capacity=5)),
-    #         ps.env.LocationConfig(ps.env.RetailStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
-    #         ps.env.LocationConfig(ps.env.HairSalon, num=2, num_assignees=3, state_opts=dict(visitor_capacity=5)),
-    #         ps.env.LocationConfig(ps.env.Restaurant, num=1, num_assignees=6, state_opts=dict(visitor_capacity=30)),
-    #         ps.env.LocationConfig(ps.env.Bar, num=1, num_assignees=3, state_opts=dict(visitor_capacity=30))
-    #     ],
-    #     person_routine_assignment=ps.sh.DefaultPersonRoutineAssignment()
-    # )
-    # return sim_config
+    #cfg =  ps.sh.small_town_config
+    #cfg.delta_start_lo = float(sys.argv[7])
+    #cfg.delta_start_hi = float(sys.argv[8])
+    #return cfg
+    sim_config = ps.env.PandemicSimConfig(
+         num_persons=500,
+         location_configs=[
+             ps.env.LocationConfig(ps.env.Home, num=150),
+             ps.env.LocationConfig(ps.env.GroceryStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
+             ps.env.LocationConfig(ps.env.Office, num=2, num_assignees=150, state_opts=dict(visitor_capacity=0)),
+             ps.env.LocationConfig(ps.env.School, num=10, num_assignees=2, state_opts=dict(visitor_capacity=30)),
+             ps.env.LocationConfig(ps.env.Hospital, num=1, num_assignees=15, state_opts=dict(patient_capacity=5)),
+             ps.env.LocationConfig(ps.env.RetailStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
+             ps.env.LocationConfig(ps.env.HairSalon, num=2, num_assignees=3, state_opts=dict(visitor_capacity=5)),
+             ps.env.LocationConfig(ps.env.Restaurant, num=1, num_assignees=6, state_opts=dict(visitor_capacity=30)),
+             ps.env.LocationConfig(ps.env.Bar, num=1, num_assignees=3, state_opts=dict(visitor_capacity=30))
+         ],
+         person_routine_assignment=ps.sh.DefaultPersonRoutineAssignment(),
+	 delta_start_lo = float(sys.argv[6]),
+	 delta_start_hi = float(sys.argv[7])
+    )
+    return sim_config
 
 def make_reg():
     return ps.sh.austin_regulations
@@ -52,7 +55,7 @@ def make_model(env):
     agent = ps.model.StageModel(env = env)
 
     # from torch.nn import Softsign, ReLU
-    ppo_params = {'n_steps': 128, 
+    ppo_params = {'n_steps': 200, 
                  'ent_coef': 0.01, 
                  'learning_rate': 0.0001, 
                  'batch_size': 64,  
@@ -67,8 +70,8 @@ def make_model(env):
         "gamma": GAMMA
     }
 
-    d_model = int(sys.argv[7])
-    n_layers = int(sys.argv[8])
+    d_model = int(sys.argv[8])
+    n_layers = int(sys.argv[9])
     net_arch = [d_model] * n_layers if n_layers != 0 else []
 
     policy_kwargs = {
@@ -89,14 +92,17 @@ def init(args):
     sim_config = make_cfg()
     regulations = make_reg()
     viz = make_viz(sim_config)
-    done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=128)
+    done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=200)
 
     reward_fn = SumReward(
             reward_fns=[
-                RewardFunctionFactory.default(RewardFunctionType.ELDERLY_HOSPITALIZED),
+#                RewardFunctionFactory.default(RewardFunctionType.ELDERLY_HOSPITALIZED),
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
                                               threshold=sim_config.max_hospital_capacity),
+                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
+                                              summary_type=InfectionSummary.CRITICAL,
+                                              threshold=3*sim_config.max_hospital_capacity),
                 RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
                                               num_stages=len(regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
@@ -110,7 +116,8 @@ def init(args):
             pandemic_regulations=regulations, 
             done_fn=done_fn,
             reward_fn=reward_fn,
-            constrain=True
+            constrain=True,
+            obs_history_size=24,
         )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
     return env, gym.get_single_env(), viz
@@ -118,7 +125,10 @@ def init(args):
 def train(env, test_env, viz, args):
     model = make_model(env)
     print("Running model")
-    model.learn(total_timesteps = 2048 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+    if args.test:
+        model.learn(total_timesteps = 2048, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+    else:
+        model.learn(total_timesteps = 2048 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
     return model    
 
 def train_sacd(env, test_env, viz, args):
@@ -135,6 +145,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--shared', action='store_true')
     parser.add_argument('--sacd', action='store_true')
+    parser.add_argument('--test', action='store_true')
     parser.add_argument('--cuda', action='store_true')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--n_cpus', type=int, default=1)
@@ -161,14 +172,22 @@ def main():
         'actor_lr': 0.0001, 
         'critic_lr': 0.001
     }
-
-    wandb.init(
-      project="value-learning",
-      group="covid",
-      entity="aypan17",
-      config=config,
-      sync_tensorboard=True
-    )
+    if args.test:
+        wandb.init(
+          project="test-space",
+          group="covid",
+          entity="aypan17",
+          config=config,
+          sync_tensorboard=True
+        )
+    else:
+        wandb.init(
+          project="value-learning",
+          group="covid",
+          entity="aypan17",
+          config=config,
+          sync_tensorboard=True
+        )
     if args.sacd:
         args.n_cpus=1
         train_env, test_env, viz = init(args)

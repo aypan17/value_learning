@@ -491,6 +491,7 @@ class PandemicSim:
             person.reset()
 
         self._infection_model.reset()
+        self._infection_model_delta.reset()
 
         num_persons = len(self._id_to_person)
         self._state = PandemicSimState(

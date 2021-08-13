@@ -71,7 +71,7 @@ class PandemicGymEnv(gym.Env):
         self._done_fn = done_fn
 
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(len(pandemic_sim.poll()),)
+            low=0, high=np.inf, shape=self.obs_to_numpy(PandemicObservation.create_empty( history_size=self._obs_history_size)).shape#(len(pandemic_sim.poll()),)
         )
         self.constrain = constrain 
         if self.constrain:
@@ -138,20 +138,15 @@ class PandemicGymEnv(gym.Env):
         return self._last_observation
 
     @property
-    def observe(self) -> np.ndarray:
-        o = self._last_observation
-        hospitalized = max(o.global_infection_summary[0][0][0], self._pandemic_sim._max_hospital_capacity)
-        a = np.concatenate([[[[hospitalized]]], o.global_testing_summary, o.stage, o.infection_above_threshold, o.time_day], axis=2).flatten()
-        print(a)
-        return a
-
-    @property
     def last_reward(self) -> float:
         return self._last_reward
 
     @property
     def get_true_reward(self) -> float:
         return self._last_true_reward
+
+    def obs_to_numpy(self, obs: PandemicObservation) -> np.ndarray:
+        return np.concatenate([obs.time_day, obs.stage, obs.infection_above_threshold, obs.global_testing_summary], axis=2)
 
     def step(self, action: int) -> Tuple[PandemicObservation, float, bool, Dict]:
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
@@ -192,8 +187,8 @@ class PandemicGymEnv(gym.Env):
         self._last_observation = obs
 
         #return self._last_observation, self._last_reward, done, {}
-        return self._pandemic_sim.poll(), self._last_reward, done, {}
-        #return self.observe, self._last_reward, done, {}
+        return self.obs_to_numpy(self._last_observation), self._last_reward, done, {}
+        
 
     def reset(self) -> PandemicObservation:
         self._pandemic_sim.reset()
@@ -206,8 +201,8 @@ class PandemicGymEnv(gym.Env):
         if self._done_fn is not None:
             self._done_fn.reset()
         #return self._last_observation
-        return self._pandemic_sim.poll()
-        #return self.observe
+        #return self._pandemic_sim.poll()
+        return self.obs_to_numpy(self._last_observation)
 
     def render(self, mode: str = 'human') -> bool:
         pass
@@ -294,7 +289,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
                                               threshold=3 * sim_config.max_hospital_capacity),
-                RewardFunctionFactory.default(RewardFunctionType.AVERAGE_STAGE,
+                RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
                                               num_stages=len(pandemic_regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
                                               num_stages=len(pandemic_regulations))

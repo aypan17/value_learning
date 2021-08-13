@@ -1,4 +1,6 @@
 import os
+import shutil
+import sys
 from collections import OrderedDict
 import itertools
 import time
@@ -6,7 +8,7 @@ from torch import nn
 from datetime import timedelta
 from bgp.rl.rlkit_platform import run_em_sac, finish_sac
 from bgp.training import experiments
-
+import numpy as np
 """
 The main run script. This script manages hyperparameters and experiment settings before launching the appropriate job
 via RLKitRunExperimentManager
@@ -19,24 +21,27 @@ Note you will need to perform a normal from-scratch run before any transfer runs
 """
 
 t_start = time.time()
-base_name = 'magni'
+base_name = sys.argv[1]
 save_path = './glucose_policy'  # where the outputs will be saved
 full_path = '{}/{}'.format(save_path, base_name)
 source_path = './'  # the path to the location of the folder 'bgp' which contains the source code
 print(base_name)
 
+# Harware config
+debug = True #sys.argv[6].lower() == 'true'
+device_list = ['cuda:0']  # list of cuda device ids or None for cpu
+device = 'cpu' #'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
+n_cpus = int(sys.argv[5])
+
 # General utility parameters
-debug = False
-#device_list = ['cuda:0']  # list of cuda device ids or None for cpu
-device = 'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
-seed_options = [i for i in range(3)]
+seed_options = [2]#np.random.randint(1, 2**31)]#i for i in range(3)]
 validation_seed_offset = 1000000
 test_seed_offset = 2000000
 # the set of virtual patients to run for, valid options are [child/adolescent/adult]#[001/.../010]
 person_options = (['child#0{}'.format(str(i).zfill(2)) for i in range(1, 11)] +
                   ['adolescent#0{}'.format(str(i).zfill(2)) for i in range(1, 11)] +
                   ['adult#0{}'.format(str(i).zfill(2)) for i in range(1, 11)])
-seed_options = [0]
+
 person_options = (['adult#001'])
 # Transfer
 transfer_run = False  # Used to differentiate RL-Scratch from RL-Trans
@@ -64,14 +69,14 @@ num_eval_runs = 100
 num_steps_per_epoch = 5760
 num_steps_per_eval = 2880
 loss_function = nn.SmoothL1Loss
-reward_fun = 'magni_bg_insulin'
-true_reward_fn = 'magni_bg'
-snapshot_gap = 1
+reward_fun = sys.argv[3] #'magni_bg_insulin'
+true_reward_fn = sys.argv[4] #'magni_bg'
+snapshot_gap = 1000
 discount = 0.99
 policy_lr = 3e-4
 qf_lr = 3e-4
 vf_lr = 3e-4
-rnn_size = 128
+rnn_size = int(sys.argv[2])
 rnn_layers = 2
 ground_truth_network_size = 256
 
@@ -97,10 +102,11 @@ else:
     num_epochs = 300
 
 # Overwriting training parameters to make short runs for debugging purposes
-# num_steps_per_epoch = 12
-# num_steps_per_eval = 12
-# num_epochs = 2
-# num_eval_runs = 1
+if debug:
+    num_steps_per_epoch = 10
+    num_steps_per_eval = 10
+    num_epochs = 2
+    num_eval_runs = 1
 
 # Running
 tuples = []
@@ -132,7 +138,8 @@ for setting in itertools.product(*option_dict.values()):
             num_epochs=num_epochs,
             num_steps_per_epoch=num_steps_per_epoch,
             num_steps_per_eval=num_steps_per_eval,
-            batch_size=256,
+            num_updates_per_env_step=n_cpus,
+            batch_size=3,#256,
             max_path_length=num_steps_per_epoch,
             discount=discount,
             reward_scale=1,
@@ -140,13 +147,14 @@ for setting in itertools.product(*option_dict.values()):
             policy_lr=policy_lr,
             qf_lr=qf_lr,
             vf_lr=vf_lr,
-            save_environment=True,
+            save_environment=False,
             device=device,
             replay_buffer_size=int(1e6),
             weight_decay=0,
             gradient_max_value=None,
             save_replay_buffer=False,
             validation_seed_offset=validation_seed_offset,
+            n_cpus=n_cpus,
         ),
         device=device,
         patient_name=person,
@@ -238,3 +246,5 @@ for tup in tuples:
 
 print('Finished {}'.format(base_name))
 print('Total Time:', timedelta(seconds=time.time()-t_start))
+#if debug:
+#    shutil.rmtree(full_path)

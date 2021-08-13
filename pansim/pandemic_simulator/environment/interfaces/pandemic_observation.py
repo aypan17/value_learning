@@ -67,16 +67,16 @@ class PandemicObservation:
             self.unlocked_non_essential_business_locations[hist_index, 0] = unlocked_non_essential_business_locations
 
         gis = np.asarray([sim_state.global_infection_summary[k] for k in sorted_infection_summary])[None, None, ...]
-        self.global_infection_summary[hist_index, 0] = gis
+        self.global_infection_summary[hist_index, 0] = gis / np.sum(gis)
 
         gts = np.asarray([sim_state.global_testing_state.summary[k] for k in sorted_infection_summary])[None, None, ...]
-        self.global_testing_summary[hist_index, 0] = gts
+        self.global_testing_summary[hist_index, 0] = gts / np.sum(gts)
 
         self.stage[hist_index, 0] = sim_state.regulation_stage
 
         self.infection_above_threshold[hist_index, 0] = int(sim_state.infection_above_threshold)
 
-        self.time_day[hist_index, 0] = int(sim_state.sim_time.day)
+        self.time_day[hist_index, 0] = (int(sim_state.sim_time.day) * 24 + int(sim_state.sim_time.hour)) / (365 * 24)
 
         self.state = sim_state
 

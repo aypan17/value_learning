@@ -3,7 +3,80 @@ from typing import List
 
 from ..environment import PandemicRegulation, DEFAULT, Risk, Office, School, HairSalon, RetailStore, Restaurant, Bar
 
-__all__ = ['austin_regulations', 'italian_regulations', 'swedish_regulations']
+__all__ = ['weak_regulations', 'austin_regulations', 'italian_regulations', 'swedish_regulations']
+
+weak_regulations: List[PandemicRegulation] = [
+    PandemicRegulation(stay_home_if_sick=False,
+                       practice_good_hygiene=False,
+                       wear_facial_coverings=False,
+                       social_distancing=DEFAULT,
+                       risk_to_avoid_gathering_size={Risk.LOW: -1, Risk.HIGH: -1},
+                       location_type_to_rule_kwargs={
+                           Office: {'lock': False},
+                           School: {'lock': False},
+                           HairSalon: {'lock': False},
+                           RetailStore: {'lock': False},
+                           Bar: {'lock': False},
+                           Restaurant: {'lock': False},
+                       },
+                       stage=0),
+    PandemicRegulation(stay_home_if_sick=True,
+                       practice_good_hygiene=True,
+                       wear_facial_coverings=False,
+                       social_distancing=DEFAULT,
+                       risk_to_avoid_gathering_size={Risk.HIGH: 100, Risk.LOW: 200},
+                       location_type_to_rule_kwargs={
+                           Office: {'lock': False},
+                           School: {'lock': False},
+                           HairSalon: {'lock': False},
+                           RetailStore: {'lock': False},
+                           Restaurant: {'lock': False},
+                           Bar: {'lock': False},
+                       },
+                       stage=1),
+    PandemicRegulation(stay_home_if_sick=True,
+                       practice_good_hygiene=True,
+                       wear_facial_coverings=True,
+                       social_distancing=DEFAULT,
+                       risk_to_avoid_gathering_size={Risk.HIGH: 50, Risk.LOW: 100},
+                       location_type_to_rule_kwargs={
+                           Office: {'lock': False},
+                           School: {'lock': False},
+                           HairSalon: {'lock': False},
+                           RetailStore: {'lock': False},
+                           Restaurant: {'lock': False},
+                           Bar: {'lock': False},
+                       },
+                       stage=2),
+    PandemicRegulation(stay_home_if_sick=True,
+                       practice_good_hygiene=True,
+                       wear_facial_coverings=True,
+                       social_distancing=0.3,
+                       risk_to_avoid_gathering_size={Risk.HIGH: 10, Risk.LOW: 25},
+                       location_type_to_rule_kwargs={
+                           Office: {'lock': False},
+                           School: {'lock': True},
+                           HairSalon: {'lock': True},
+                           RetailStore: {'lock': False},
+                           Restaurant: {'lock': False},
+                           Bar: {'lock': False},
+                       },
+                       stage=3),
+    PandemicRegulation(stay_home_if_sick=True,
+                       practice_good_hygiene=True,
+                       wear_facial_coverings=True,
+                       social_distancing=0.5,
+                       risk_to_avoid_gathering_size={Risk.HIGH: 0, Risk.LOW: 0},
+                       location_type_to_rule_kwargs={
+                           Office: {'lock': True},
+                           School: {'lock': True},
+                           HairSalon: {'lock': True},
+                           RetailStore: {'lock': True},
+                           Restaurant: {'lock': False},
+                           Bar: {'lock': False},
+                       },
+                       stage=4)
+]
 
 austin_regulations: List[PandemicRegulation] = [
     PandemicRegulation(stay_home_if_sick=False,
@@ -77,6 +150,7 @@ austin_regulations: List[PandemicRegulation] = [
                        },
                        stage=4)
 ]
+
 
 # https://en.wikipedia.org/wiki/COVID-19_pandemic_in_Italy#First_measures
 

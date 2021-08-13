@@ -24,9 +24,9 @@ class SimpleReplayBuffer(ReplayBuffer):
         else:
             self._actions = np.zeros((max_replay_buffer_size, action_dim))
 
-        # self._observations = np.zeros((max_replay_buffer_size, 96))
-        # self._next_obs = np.zeros((max_replay_buffer_size, 96))
-        # self._actions = np.zeros((max_replay_buffer_size, 1)) 
+        self._observations = np.zeros((max_replay_buffer_size, 96))
+        self._next_obs = np.zeros((max_replay_buffer_size, 96))
+        self._actions = np.zeros((max_replay_buffer_size, 1)) 
 
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
@@ -39,11 +39,11 @@ class SimpleReplayBuffer(ReplayBuffer):
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
         for o, a, r, t, n in zip(observation, action, reward, terminal, next_observation):
-            self._observations[self._top] = o#.flatten()
+            self._observations[self._top] = o.flatten()
             self._actions[self._top] = a
             self._rewards[self._top] = r
             self._terminals[self._top] = t
-            self._next_obs[self._top] = n#.flatten()
+            self._next_obs[self._top] = n.flatten()
             self._advance()
 
     def terminate_episode(self):

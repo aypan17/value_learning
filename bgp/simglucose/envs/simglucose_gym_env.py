@@ -498,7 +498,6 @@ class DeepSACT1DEnv(gym.Env):
             s = deepcopy(self)
             seed_list = s._seed()
             s.seeds = {'numpy': seed_list[0], 'sensor': seed_list[1], 'scenario': seed_list[2]}
-            s.set_patient_dependent_values(s.patient_name)
             return s
 
         e = SubprocVecEnv([get_self for i in range(n)], start_method="fork")
