@@ -117,7 +117,8 @@ def init(args):
             done_fn=done_fn,
             reward_fn=reward_fn,
             constrain=True,
-            obs_history_size=24,
+            obs_history_size=4,
+            num_days_in_obs=5
         )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
     return env, gym.get_single_env(), viz

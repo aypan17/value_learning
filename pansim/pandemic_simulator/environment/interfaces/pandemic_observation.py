@@ -18,7 +18,11 @@ class PandemicObservation:
     used by the reinforcement learning interface."""
 
     global_infection_summary: np.ndarray
+    global_infection_summary_alpha: np.ndarray
+    global_infection_summary_delta: np.ndarray
     global_testing_summary: np.ndarray
+    global_testing_summary_alpha: np.ndarray
+    global_testing_summary_delta: np.ndarray
     stage: np.ndarray
     infection_above_threshold: np.ndarray
     time_day: np.ndarray
@@ -38,7 +42,11 @@ class PandemicObservation:
         :return: an empty PandemicObservation instance
         """
         return PandemicObservation(global_infection_summary=np.zeros((history_size, 1, len(InfectionSummary))),
+                                   global_infection_summary_alpha=np.zeros((history_size, 1, len(InfectionSummary))),
+                                   global_infection_summary_delta=np.zeros((history_size, 1, len(InfectionSummary))),
                                    global_testing_summary=np.zeros((history_size, 1, len(InfectionSummary))),
+                                   global_testing_summary_alpha=np.zeros((history_size, 1, len(InfectionSummary))),
+                                   global_testing_summary_delta=np.zeros((history_size, 1, len(InfectionSummary))),
                                    stage=np.zeros((history_size, 1, 1)),
                                    infection_above_threshold=np.zeros((history_size, 1, 1)),
                                    time_day=np.zeros((history_size, 1, 1)),
@@ -67,10 +75,18 @@ class PandemicObservation:
             self.unlocked_non_essential_business_locations[hist_index, 0] = unlocked_non_essential_business_locations
 
         gis = np.asarray([sim_state.global_infection_summary[k] for k in sorted_infection_summary])[None, None, ...]
+        gis_a = np.asarray([sim_state.global_infection_summary_alpha[k] for k in sorted_infection_summary])[None, None, ...]
+        gis_d = np.asarray([sim_state.global_infection_summary_delta[k] for k in sorted_infection_summary])[None, None, ...]
         self.global_infection_summary[hist_index, 0] = gis / np.sum(gis)
+        self.global_infection_summary_alpha[hist_index, 0] = gis_a / np.sum(gis_a)
+        self.global_infection_summary_delta[hist_index, 0] = gis_d / np.sum(gis_d)
 
         gts = np.asarray([sim_state.global_testing_state.summary[k] for k in sorted_infection_summary])[None, None, ...]
+        gts_a = np.asarray([sim_state.global_testing_state_alpha.summary[k] for k in sorted_infection_summary])[None, None, ...]
+        gts_d = np.asarray([sim_state.global_testing_state_delta.summary[k] for k in sorted_infection_summary])[None, None, ...]
         self.global_testing_summary[hist_index, 0] = gts / np.sum(gts)
+        self.global_testing_summary[hist_index, 0] = gts_a / np.sum(gts_a)
+        self.global_testing_summary[hist_index, 0] = gts_d / np.sum(gts_d)
 
         self.stage[hist_index, 0] = sim_state.regulation_stage
 

@@ -31,6 +31,7 @@ class PandemicGymEnv(gym.Env):
     _reward_fn: Optional[RewardFunction]
     _done_fn: Optional[DoneFunction]
 
+    _obs_with_history: np.ndarray
     _last_observation: PandemicObservation
     _last_reward: float
 
@@ -41,6 +42,7 @@ class PandemicGymEnv(gym.Env):
                  true_reward_fn: Optional[RewardFunction] = None,
                  done_fn: Optional[DoneFunction] = None,
                  obs_history_size: int = 1,
+                 num_days_in_obs: int = 1,
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
                  constrain: bool = False
@@ -57,6 +59,7 @@ class PandemicGymEnv(gym.Env):
         self._pandemic_sim = pandemic_sim
         self._stage_to_regulation = {reg.stage: reg for reg in pandemic_regulations}
         self._obs_history_size = obs_history_size
+        self._num_days_in_obs = num_days_in_obs
         self._sim_steps_per_regulation = sim_steps_per_regulation
 
         if non_essential_business_location_ids is not None:
@@ -67,17 +70,20 @@ class PandemicGymEnv(gym.Env):
 
         self._reward_fn = reward_fn
         self._true_reward_fn = true_reward_fn 
-
         self._done_fn = done_fn
 
+
+        self._obs_with_history = self.obs_to_numpy(PandemicObservation.create_empty(history_size=self._obs_history_size*self._num_days_in_obs))
         self.observation_space = spaces.Box(
-            low=0, high=np.inf, shape=self.obs_to_numpy(PandemicObservation.create_empty( history_size=self._obs_history_size)).shape#(len(pandemic_sim.poll()),)
+            low=0, high=np.inf, shape=self._obs_with_history.shape
         )
+
         self.constrain = constrain 
         if self.constrain:
             self.action_space = gym.spaces.Discrete(3) 
         else:
             self.action_space = gym.spaces.Discrete(len(self._stage_to_regulation))
+
 
     @classmethod
     def from_config(cls: Type['PandemicGymEnv'],
@@ -87,6 +93,7 @@ class PandemicGymEnv(gym.Env):
                     reward_fn: Optional[RewardFunction] = None,
                     done_fn: Optional[DoneFunction] = None,
                     obs_history_size: int = 1,
+                    num_days_in_obs: int = 1,
                     non_essential_business_location_ids: Optional[List[LocationID]] = None,
                     ) -> 'PandemicGymEnv':
         """
@@ -127,6 +134,7 @@ class PandemicGymEnv(gym.Env):
                               reward_fn=reward_fn,
                               done_fn=done_fn,
                               obs_history_size=obs_history_size,
+                              num_days_in_obs=num_days_in_obs,
                               non_essential_business_location_ids=non_essential_business_location_ids)
 
     @property
@@ -146,7 +154,7 @@ class PandemicGymEnv(gym.Env):
         return self._last_true_reward
 
     def obs_to_numpy(self, obs: PandemicObservation) -> np.ndarray:
-        return np.concatenate([obs.time_day, obs.stage, obs.infection_above_threshold, obs.global_testing_summary], axis=2)
+        return np.concatenate([obs.time_day, obs.stage, obs.infection_above_threshold, obs.global_testing_summary_alpha, obs.global_testing_summary_delta], axis=2)
 
     def step(self, action: int) -> Tuple[PandemicObservation, float, bool, Dict]:
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
@@ -175,34 +183,47 @@ class PandemicGymEnv(gym.Env):
             self._pandemic_sim.step()
 
             # store only the last self._history_size state values
-            if i >= (self._sim_steps_per_regulation - self._obs_history_size):
+            if (i+1) % (self._sim_steps_per_regulation // self._obs_history_size) == 0:
                 obs.update_obs_with_sim_state(self._pandemic_sim.state, hist_index,
                                               self._non_essential_business_loc_ids)
                 hist_index += 1
 
+            # append the last timestep if there's an overflow
+            if (i+1) == self._sim_steps_per_regulation and \
+                self._sim_steps_per_regulation % self._obs_history_size != 0:
+                    obs.update_obs_with_sim_state(self._pandemic_sim.state, hist_index,
+                                                  self._non_essential_business_loc_ids)
+
         prev_obs = self._last_observation
         self._last_reward = self._reward_fn.calculate_reward(prev_obs, action, obs) if self._reward_fn else 0.
-        self._last_true_reward = self._true_reward_fn.calculate_reward(prev_obs, action, obs) if self._true_reward_fn is not None else 0.
+        self._last_true_reward = \
+            self._true_reward_fn.calculate_reward(prev_obs, action, obs) if self._true_reward_fn is not None else 0.
         done = self._done_fn.calculate_done(obs, action) if self._done_fn else False
         self._last_observation = obs
+        self._obs_with_history = np.concatenate([self._obs_with_history[self._obs_history_size:], self.obs_to_numpy(self._last_observation)])
 
         #return self._last_observation, self._last_reward, done, {}
-        return self.obs_to_numpy(self._last_observation), self._last_reward, done, {}
+        return self._obs_with_history, self._last_reward, done, {}
         
 
-    def reset(self) -> PandemicObservation:
+    def reset(self) -> np.ndarray:
         self._pandemic_sim.reset()
-        self._last_observation = PandemicObservation.create_empty(
-            history_size=self._obs_history_size,
-            num_non_essential_business=len(self._non_essential_business_loc_ids)
-            if self._non_essential_business_loc_ids is not None else None)
         self._last_reward = 0.0
         self._last_true_reward = 0.0
         if self._done_fn is not None:
             self._done_fn.reset()
+
+        self._last_observation = PandemicObservation.create_empty(
+            history_size=self._obs_history_size,
+            num_non_essential_business=len(self._non_essential_business_loc_ids)
+            if self._non_essential_business_loc_ids is not None else None)
+        self._obs_with_history = self.obs_to_numpy(PandemicObservation.create_empty(
+            history_size=self._obs_history_size*self._num_days_in_obs,
+            num_non_essential_business=len(self._non_essential_business_loc_ids)
+            if self._non_essential_business_loc_ids is not None else None))
+
         #return self._last_observation
-        #return self._pandemic_sim.poll()
-        return self.obs_to_numpy(self._last_observation)
+        return self._obs_with_history
 
     def render(self, mode: str = 'human') -> bool:
         pass
@@ -216,6 +237,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  true_reward_fn: Optional[RewardFunction] = None,
                  done_fn: Optional[DoneFunction] = None,
                  obs_history_size: int = 1,
+                 num_days_in_obs: int = 1,
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
                  constrain: bool = False,
@@ -227,6 +249,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  true_reward_fn,
                  done_fn,
                  obs_history_size,
+                 num_days_in_obs,
                  sim_steps_per_regulation,
                  non_essential_business_location_ids,
                  constrain
@@ -241,6 +264,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                     reward_fn: Optional[RewardFunction] = None,
                     done_fn: Optional[DoneFunction] = None,
                     obs_history_size: int = 1,
+                    num_days_in_obs: int = 1,
                     non_essential_business_location_ids: Optional[List[LocationID]] = None,
                     alpha: float = 0.4,
                     beta: float = 1,

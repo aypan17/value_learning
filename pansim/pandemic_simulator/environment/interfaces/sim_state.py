@@ -30,8 +30,20 @@ class PandemicSimState:
     global_infection_summary: Dict[InfectionSummary, int]
     """Specifies the number of people with each infection summary"""
 
+    global_infection_summary_alpha: Dict[InfectionSummary, int]
+    """Specifies the number of people with each alpha infection summary"""
+
+    global_infection_summary_delta: Dict[InfectionSummary, int]
+    """Specifies the number of people with each delta infection summary"""
+
     global_testing_state: GlobalTestingState
     """Specifies the number of people with each infection summary after testing"""
+
+    global_testing_state_alpha: GlobalTestingState
+    """Specifies the number of people with each alpha infection summary after testing"""
+
+    global_testing_state_delta: GlobalTestingState
+    """Specifies the number of people with each delta infection summary after testing"""
 
     global_location_summary: Mapping[Tuple[str, str], LocationSummary]
     """A mapping that holds summary statistics (usually cumulative) for each location and person type tuple -

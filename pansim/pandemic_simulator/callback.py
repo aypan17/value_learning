@@ -75,8 +75,8 @@ class WandbCallback(BaseCallback):
 		infection_data = np.zeros((1, 5))
 		threshold_data = np.zeros(len(list_obs))
 		for obs in list_obs:
-			infection_data += np.squeeze(obs.global_infection_summary, axis=0) 
-			threshold_data += np.squeeze(obs.infection_above_threshold)
+			infection_data += obs.global_infection_summary[-1]
+			threshold_data += obs.infection_above_threshold[-1].item()
 
 		self.episode_rewards.append(np.mean(rew))
 		self.episode_reward_std.append(np.std(rew))

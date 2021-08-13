@@ -39,7 +39,7 @@ def get_average_returns(paths):
 
 
 def get_average_true_returns(paths):
-    returns = [sum([path["true_rewards"] for path in paths])]
+    returns = [sum(path["true_rewards"]) for path in paths]
     return np.mean(returns)
 
 def get_failed_episodes(paths):

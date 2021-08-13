@@ -87,20 +87,43 @@ class RandomPandemicTesting(PandemicTesting):
         if infection_state_delta is None:
             infection_state_delta = IndividualInfectionState(summary=InfectionSummary.NONE, spread_probability=0)
 
-        if infection_state.summary == InfectionSummary.DEAD or infection_state_delta.summary == InfectionSummary.DEAD:
-            return PandemicTestResult.DEAD
+        ### Get alpha infection test ###
+        if infection_state.summary == InfectionSummary.DEAD:
+            test_result_alpha = PandemicTestResult.DEAD 
 
-        test_outcome = infection_state.summary in positive_states or infection_state_delta.summary in positive_states
-
+        test_outcome_alpha = infection_state.summary in positive_states
         # account for testing uncertainty
         rnd = self._numpy_rng.uniform()
-        if test_outcome and rnd < self._testing_false_negative_rate:
-            test_outcome = False
-        elif not test_outcome and rnd < self._testing_false_positive_rate:
-            test_outcome = True
+        if test_outcome_alpha and rnd < self._testing_false_negative_rate:
+            test_outcome_alpha = False
+        elif not test_outcome_alpha and rnd < self._testing_false_positive_rate:
+            test_outcome_alpha = True
 
-        critical = infection_state.summary == InfectionSummary.CRITICAL or infection_state_delta.summary == InfectionSummary.CRITICAL
-        test_result = (PandemicTestResult.CRITICAL if test_outcome and critical
-                       else PandemicTestResult.POSITIVE if test_outcome else PandemicTestResult.NEGATIVE)
+        critical_alpha = infection_state.summary == InfectionSummary.CRITICAL
+        test_result_alpha = (PandemicTestResult.CRITICAL if test_outcome_alpha and critical_alpha
+                       else PandemicTestResult.POSITIVE if test_outcome_alpha else PandemicTestResult.NEGATIVE)
 
-        return test_result
+        ### Get delta infection test ###
+        if infection_state_delta.summary == InfectionSummary.DEAD:
+            test_result_delta = PandemicTestResult.DEAD 
+
+        test_outcome_delta = infection_state_delta.summary in positive_states
+        # account for testing uncertainty
+        rnd = self._numpy_rng.uniform()
+        if test_outcome_delta and rnd < self._testing_false_negative_rate:
+            test_outcome_delta = False
+        elif not test_outcome_delta and rnd < self._testing_false_positive_rate:
+            test_outcome_delta = True
+
+        critical_delta = infection_state_delta.summary == InfectionSummary.CRITICAL
+        test_result_delta = (PandemicTestResult.CRITICAL if test_outcome_delta and critical_delta
+                       else PandemicTestResult.POSITIVE if test_outcome_delta else PandemicTestResult.NEGATIVE)
+
+        ### Compute overall test result (for summary statistics) ###
+        if test_result_alpha == PandemicTestResult.DEAD or test_result_delta == PandemicTestResult.DEAD:
+            return PandemicTestResult.DEAD, test_result_alpha, test_result_delta
+        if test_result_alpha == PandemicTestResult.CRITICAL or test_result_delta == PandemicTestResult.CRITICAL:
+            return PandemicTestResult.CRITICAL, test_result_alpha, test_result_delta
+        if test_result_alpha == PandemicTestResult.POSITIVE or test_result_delta == PandemicTestResult.POSITIVE:
+            return PandemicTestResult.POSITIVE, test_result_alpha, test_result_delta
+        return PandemicTestResult.NEGATIVE, test_result_alpha, test_result_delta

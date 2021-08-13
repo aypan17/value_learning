@@ -1,8 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=glucose
-#SBATCH --cpus-per-task=4
-# #SBATCH --mem-per-cpu=4GB
+#SBATCH --cpus-per-task=6
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:1

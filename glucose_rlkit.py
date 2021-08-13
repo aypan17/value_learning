@@ -26,10 +26,10 @@ full_path = '{}/{}'.format(save_path, base_name)
 source_path = './'  # the path to the location of the folder 'bgp' which contains the source code
 print(base_name)
 
-# Harware config
+# Hardware config
 debug = sys.argv[6].lower() == 'true'
 device_list = ['cuda:0']  # list of cuda device ids or None for cpu
-device = 'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
+device = 'cuda:0' if 'CUDA_VISIBLE_DEVICES' in os.environ else 'cpu'  # the cuda device to default to for debug runs, can also set to 'cpu'
 n_cpus = int(sys.argv[5])
 
 # General utility parameters

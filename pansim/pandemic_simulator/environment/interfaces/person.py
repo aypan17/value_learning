@@ -33,6 +33,8 @@ class PersonState:
     avoid_gathering_size: int = field(init=False, default=-1)
 
     test_result: PandemicTestResult = field(init=False, default=PandemicTestResult.UNTESTED)
+    test_result_alpha: PandemicTestResult = field(init=False, default=PandemicTestResult.UNTESTED)
+    test_result_delta: PandemicTestResult = field(init=False, default=PandemicTestResult.UNTESTED)
 
     avoid_location_types: List[type] = field(default_factory=list, init=False)
     not_infection_probability: float = field(default=1., init=False)

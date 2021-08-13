@@ -126,7 +126,15 @@ class PandemicSim:
             id_to_location_state={location.id: location.state for location in locations},
             location_type_infection_summary={type(location): 0 for location in locations},
             global_infection_summary={s: 0 for s in sorted_infection_summary},
+            global_infection_summary_alpha={s: 0 for s in sorted_infection_summary},
+            global_infection_summary_delta={s: 0 for s in sorted_infection_summary},
             global_testing_state=GlobalTestingState(summary={s: len(persons) if s == InfectionSummary.NONE else 0
+                                                             for s in sorted_infection_summary},
+                                                    num_tests=0),
+            global_testing_state_alpha=GlobalTestingState(summary={s: len(persons) if s == InfectionSummary.NONE else 0
+                                                             for s in sorted_infection_summary},
+                                                    num_tests=0),
+            global_testing_state_delta=GlobalTestingState(summary={s: len(persons) if s == InfectionSummary.NONE else 0
                                                              for s in sorted_infection_summary},
                                                     num_tests=0),
             global_location_summary=self._registry.global_location_summary,
@@ -290,7 +298,7 @@ class PandemicSim:
                 person1_state.not_infection_probability_delta_history.append((person1_state.current_location,
                                                                         person1_state.not_infection_probability_delta))
 
-    def _update_global_testing_state(self, new_result: PandemicTestResult, prev_result: PandemicTestResult) -> None:
+    def _update_global_testing_state(self, state: GlobalTestingState, new_result: PandemicTestResult, prev_result: PandemicTestResult) -> None:
         if new_result == prev_result:
             # nothing to update
             return
@@ -299,51 +307,51 @@ class PandemicSim:
         if new_result == PandemicTestResult.DEAD and prev_result != PandemicTestResult.DEAD:
             prv = InfectionSummary.CRITICAL if prev_result == PandemicTestResult.CRITICAL else \
                 InfectionSummary.INFECTED if prev_result == PandemicTestResult.POSITIVE else InfectionSummary.NONE
-            self._state.global_testing_state.summary[InfectionSummary.DEAD] += 1
-            self._state.global_testing_state.summary[prv] -= 1
+            state.summary[InfectionSummary.DEAD] += 1
+            state.summary[prv] -= 1
 
         # person tested positive/critical
         elif (new_result in {PandemicTestResult.POSITIVE, PandemicTestResult.CRITICAL} and
               prev_result in {PandemicTestResult.POSITIVE, PandemicTestResult.NEGATIVE, PandemicTestResult.UNTESTED}):
             new = InfectionSummary.CRITICAL if new_result == PandemicTestResult.CRITICAL else InfectionSummary.INFECTED
             prv = InfectionSummary.INFECTED if prev_result == PandemicTestResult.POSITIVE else InfectionSummary.NONE
-            self._state.global_testing_state.summary[new] += 1
-            self._state.global_testing_state.summary[prv] -= 1
-            self._state.global_testing_state.num_tests += 1  # update number of tests
+            state.summary[new] += 1
+            state.summary[prv] -= 1
+            state.num_tests += 1  # update number of tests
 
         # person tested negative after having tested as infected before
         elif (new_result == PandemicTestResult.NEGATIVE and
               prev_result in {PandemicTestResult.POSITIVE, PandemicTestResult.CRITICAL}):
             prv = InfectionSummary.CRITICAL if prev_result == PandemicTestResult.CRITICAL else InfectionSummary.INFECTED
-            self._state.global_testing_state.summary[InfectionSummary.RECOVERED] += 1
-            self._state.global_testing_state.summary[prv] -= 1
-            self._state.global_testing_state.num_tests += 1  # update number of tests
+            state.summary[InfectionSummary.RECOVERED] += 1
+            state.summary[prv] -= 1
+            state.num_tests += 1  # update number of tests
 
-    def poll(self) -> np.ndarray:
-        """Returns an observation of the current state of the simulator. Used to update regulation specifics."""
-        time = [float(self._state.sim_time.day / 365)]
-        stage = [int(self._state.regulation_stage)]
-        stage_sum = [0] if self._state.regulation_stage_sum == 0 else [float(self._state.regulation_stage_sum / self._state.sim_time.day)]
-        threshold_reached = [int(self._state.infection_above_threshold)]
-        #hospitalizations = [max(self._max_hospital_capacity, self._state.global_infection_summary.get(InfectionSummary.CRITICAL))]
-        test_results = [self._state.global_testing_state.summary.get(s) / len(self._persons) for s in sorted_infection_summary]
-        summary = np.array(time + stage + stage_sum + threshold_reached + test_results)
-        return summary
+    # def poll(self) -> np.ndarray:
+    #     """Returns an observation of the current state of the simulator. Used to update regulation specifics."""
+    #     time = [float(self._state.sim_time.day / 365)]
+    #     stage = [int(self._state.regulation_stage)]
+    #     stage_sum = [0] if self._state.regulation_stage_sum == 0 else [float(self._state.regulation_stage_sum / self._state.sim_time.day)]
+    #     threshold_reached = [int(self._state.infection_above_threshold)]
+    #     #hospitalizations = [max(self._max_hospital_capacity, self._state.global_infection_summary.get(InfectionSummary.CRITICAL))]
+    #     test_results = [self._state.global_testing_state.summary.get(s) / len(self._persons) for s in sorted_infection_summary]
+    #     summary = np.array(time + stage + stage_sum + threshold_reached + test_results)
+    #     return summary
 
-        # loc_data = []
-        # for l in self.location_names:
-        #     entries = 0
-        #     visits = 0
-        #     for p in self.person_types:
-        #         entries += self._state.global_location_summary[(l, p)].entry_count
-        #         visits += self._state.global_location_summary[(l, p)].visitor_count
-        #     loc_data.append(entries)
-        #     loc_data.append(visits)
-        # # Subtract because we only want a moving average of the previous restrictions
-        # loc_data = (np.array(loc_data) - self.prev_loc_data) / len(self._persons)
-        # self.prev_loc_data = loc_data 
+    #     # loc_data = []
+    #     # for l in self.location_names:
+    #     #     entries = 0
+    #     #     visits = 0
+    #     #     for p in self.person_types:
+    #     #         entries += self._state.global_location_summary[(l, p)].entry_count
+    #     #         visits += self._state.global_location_summary[(l, p)].visitor_count
+    #     #     loc_data.append(entries)
+    #     #     loc_data.append(visits)
+    #     # # Subtract because we only want a moving average of the previous restrictions
+    #     # loc_data = (np.array(loc_data) - self.prev_loc_data) / len(self._persons)
+    #     # self.prev_loc_data = loc_data 
 
-        #return np.concatenate([summary, loc_data]) 
+    #     #return np.concatenate([summary, loc_data]) 
 
     def step(self) -> None:
         """Method that advances one step through the simulator"""
@@ -368,6 +376,8 @@ class PandemicSim:
         # call infection model steps
         if self._infection_update_interval.trigger_at_interval(self._state.sim_time):
             global_infection_summary = {s: 0 for s in sorted_infection_summary}
+            global_infection_summary_alpha = {s: 0 for s in sorted_infection_summary}
+            global_infection_summary_delta = {s: 0 for s in sorted_infection_summary}
             for person in self._id_to_person.values():
                 # infection model step
                 person.state.infection_state = self._infection_model.step(person.state.infection_state,
@@ -401,6 +411,15 @@ class PandemicSim:
                         self._state.location_type_infection_summary[person_location_type] += 1
 
                 global_infection_summary[get_infection_summary(person.state)] += 1
+                if person.state.infection_state is None:
+                    global_infection_summary_alpha[InfectionSummary.NONE] += 1
+                else:
+                    global_infection_summary_alpha[person.state.infection_state.summary] += 1
+                if person.state.infection_state_delta is None:
+                    global_infection_summary_delta[InfectionSummary.NONE] += 1
+                else:
+                    global_infection_summary_delta[person.state.infection_state_delta.summary] += 1
+
                 person.state.not_infection_probability = 1.
                 person.state.not_infection_probability_delta = 1.
                 person.state.not_infection_probability_history = []
@@ -408,11 +427,17 @@ class PandemicSim:
 
                 # test the person for infection
                 if self._pandemic_testing.admit_person(person.state):
-                    new_test_result = self._pandemic_testing.test_person(person.state)
-                    self._update_global_testing_state(new_test_result, person.state.test_result)
+                    new_test_result, new_test_result_alpha, new_test_result_delta = self._pandemic_testing.test_person(person.state)
+                    self._update_global_testing_state(self._state.global_testing_state, new_test_result, person.state.test_result)
+                    self._update_global_testing_state(self._state.global_testing_state_alpha, new_test_result, person.state.test_result_alpha)
+                    self._update_global_testing_state(self._state.global_testing_state_delta, new_test_result, person.state.test_result_delta)
                     person.state.test_result = new_test_result
+                    person.state.test_result_alpha = new_test_result_alpha
+                    person.state.test_result_delta = new_test_result_delta
 
             self._state.global_infection_summary = global_infection_summary
+            self._state.global_infection_summary_alpha = global_infection_summary_alpha
+            self._state.global_infection_summary_delta = global_infection_summary_delta
         self._state.infection_above_threshold = (self._state.global_testing_state.summary[InfectionSummary.INFECTED]
                                                  >= self._infection_threshold)
 
@@ -500,8 +525,16 @@ class PandemicSim:
             location_type_infection_summary={type(location): 0 for location in self._id_to_location.values()},
 
             global_infection_summary={s: 0 for s in sorted_infection_summary},
+            global_infection_summary_alpha={s: 0 for s in sorted_infection_summary},
+            global_infection_summary_delta={s: 0 for s in sorted_infection_summary},
             global_location_summary=self._registry.global_location_summary,
             global_testing_state=GlobalTestingState(summary={s: num_persons if s == InfectionSummary.NONE else 0
+                                                             for s in sorted_infection_summary},
+                                                    num_tests=0),
+            global_testing_state_alpha=GlobalTestingState(summary={s: num_persons if s == InfectionSummary.NONE else 0
+                                                             for s in sorted_infection_summary},
+                                                    num_tests=0),
+            global_testing_state_delta=GlobalTestingState(summary={s: num_persons if s == InfectionSummary.NONE else 0
                                                              for s in sorted_infection_summary},
                                                     num_tests=0),
             sim_time=SimTime(),
