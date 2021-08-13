@@ -149,7 +149,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         Policy Loss
         """
         if self.train_policy_with_reparameterization:
-            policy_loss = (alpha*log_pi - q_new_actions).detach().mean()
+            policy_loss = (alpha*log_pi - q_new_actions).mean()
         else:
             log_policy_target = q_new_actions - v_pred
             policy_loss = (
