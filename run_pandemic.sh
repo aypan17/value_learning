@@ -1,13 +1,13 @@
 #!/bin/bash
 # shellcheck disable=SC2206
 #SBATCH --job-name=pandemic
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=16
 # #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
-#SBATCH --gres gpu:1
-#SBATCH -p 'jsteinhardt'
-#SBATCH -w shadowfax
+# #SBATCH --gres gpu:1
+#SBATCH -p 'high'# 'jsteinhardt'
+# #SBATCH -w balrog
 
 set -x 
 
@@ -25,9 +25,9 @@ GAMMA=$4
 DELTA=$5
 LO=$6
 HI=$7
-DISCOUNT=$8
-WIDTH=$9
-DEPTH=${10}
+WIDTH=$8
+DEPTH=$9
+DISCOUNT=${10}
 
 if [ "${NAME}" = "sacd" ]; then
 	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $LO $HI 0 0 $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" --sacd

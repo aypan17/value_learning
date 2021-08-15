@@ -429,8 +429,8 @@ class PandemicSim:
                 if self._pandemic_testing.admit_person(person.state):
                     new_test_result, new_test_result_alpha, new_test_result_delta = self._pandemic_testing.test_person(person.state)
                     self._update_global_testing_state(self._state.global_testing_state, new_test_result, person.state.test_result)
-                    self._update_global_testing_state(self._state.global_testing_state_alpha, new_test_result, person.state.test_result_alpha)
-                    self._update_global_testing_state(self._state.global_testing_state_delta, new_test_result, person.state.test_result_delta)
+                    self._update_global_testing_state(self._state.global_testing_state_alpha, new_test_result_alpha, person.state.test_result_alpha)
+                    self._update_global_testing_state(self._state.global_testing_state_delta, new_test_result_delta, person.state.test_result_delta)
                     person.state.test_result = new_test_result
                     person.state.test_result_alpha = new_test_result_alpha
                     person.state.test_result_delta = new_test_result_delta
@@ -438,6 +438,7 @@ class PandemicSim:
             self._state.global_infection_summary = global_infection_summary
             self._state.global_infection_summary_alpha = global_infection_summary_alpha
             self._state.global_infection_summary_delta = global_infection_summary_delta
+
         self._state.infection_above_threshold = (self._state.global_testing_state.summary[InfectionSummary.INFECTED]
                                                  >= self._infection_threshold)
 

@@ -55,7 +55,7 @@ def make_model(env):
     agent = ps.model.StageModel(env = env)
 
     # from torch.nn import Softsign, ReLU
-    ppo_params = {'n_steps': 200, 
+    ppo_params = {'n_steps': 192, 
                  'ent_coef': 0.01, 
                  'learning_rate': 0.0001, 
                  'batch_size': 64,  
@@ -92,7 +92,7 @@ def init(args):
     sim_config = make_cfg()
     regulations = make_reg()
     viz = make_viz(sim_config)
-    done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=200)
+    done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=192)
 
     reward_fn = SumReward(
             reward_fns=[
@@ -100,9 +100,9 @@ def init(args):
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
                                               threshold=sim_config.max_hospital_capacity),
-                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
-                                              summary_type=InfectionSummary.CRITICAL,
-                                              threshold=3*sim_config.max_hospital_capacity),
+                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABSOLUTE,
+                                              summary_type=InfectionSummary.CRITICAL),
+                                              #threshold=3*sim_config.max_hospital_capacity),
                 RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
                                               num_stages=len(regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,

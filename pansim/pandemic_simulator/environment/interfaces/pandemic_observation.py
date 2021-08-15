@@ -77,6 +77,7 @@ class PandemicObservation:
         gis = np.asarray([sim_state.global_infection_summary[k] for k in sorted_infection_summary])[None, None, ...]
         gis_a = np.asarray([sim_state.global_infection_summary_alpha[k] for k in sorted_infection_summary])[None, None, ...]
         gis_d = np.asarray([sim_state.global_infection_summary_delta[k] for k in sorted_infection_summary])[None, None, ...]
+
         self.global_infection_summary[hist_index, 0] = gis / np.sum(gis)
         self.global_infection_summary_alpha[hist_index, 0] = gis_a / np.sum(gis_a)
         self.global_infection_summary_delta[hist_index, 0] = gis_d / np.sum(gis_d)
@@ -84,9 +85,10 @@ class PandemicObservation:
         gts = np.asarray([sim_state.global_testing_state.summary[k] for k in sorted_infection_summary])[None, None, ...]
         gts_a = np.asarray([sim_state.global_testing_state_alpha.summary[k] for k in sorted_infection_summary])[None, None, ...]
         gts_d = np.asarray([sim_state.global_testing_state_delta.summary[k] for k in sorted_infection_summary])[None, None, ...]
+
         self.global_testing_summary[hist_index, 0] = gts / np.sum(gts)
-        self.global_testing_summary[hist_index, 0] = gts_a / np.sum(gts_a)
-        self.global_testing_summary[hist_index, 0] = gts_d / np.sum(gts_d)
+        self.global_testing_summary_alpha[hist_index, 0] = gts_a / np.sum(gts_a)
+        self.global_testing_summary_delta[hist_index, 0] = gts_d / np.sum(gts_d)
 
         self.stage[hist_index, 0] = sim_state.regulation_stage
 

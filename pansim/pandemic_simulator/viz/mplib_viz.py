@@ -104,10 +104,10 @@ class BaseMatplotLibViz(PandemicViz):
         gis = np.vstack(self._gis).squeeze()
         ax.plot(gis)
         ax.legend(self._gis_legend, loc=1)
-        ax.set_ylim(-0.1, self._num_persons + 1)
+        ax.set_ylim(-0.1, 1.01)
         ax.set_title('Global Infection Summary')
         ax.set_xlabel('time (days)')
-        ax.set_ylabel('persons')
+        ax.set_ylabel('proportion')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     def plot_gts(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
@@ -115,16 +115,16 @@ class BaseMatplotLibViz(PandemicViz):
         gts = np.vstack(self._gts).squeeze()
         ax.plot(gts)
         ax.legend(self._gis_legend, loc=1)
-        ax.set_ylim(-0.1, self._num_persons + 1)
+        ax.set_ylim(-0.1, 1.01)
         ax.set_title('Global Testing Summary')
         ax.set_xlabel('time (days)')
-        ax.set_ylabel('persons')
+        ax.set_ylabel('proportion')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     def plot_critical_summary(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
         gis = np.vstack(self._gis).squeeze()
-        ax.plot(gis[:, self._critical_index])
+        ax.plot(self._num_persons * gis[:, self._critical_index])
         ax.plot(np.arange(gis.shape[0]), np.ones(gis.shape[0]) * self._max_hospital_capacity, 'y')
         ax.legend([InfectionSummary.CRITICAL.value, 'Max hospital capacity'], loc=1)
         ax.set_ylim(-0.1, self._max_hospital_capacity * 3)
@@ -137,7 +137,7 @@ class BaseMatplotLibViz(PandemicViz):
         ax = ax or plt.gca()
         stages = np.concatenate(self._stages).squeeze()
         ax.plot(stages)
-        ax.set_ylim(-0.1, kwargs.get('num_stages', np.max(self._stages)) + 1)
+        ax.set_ylim(-0.1, 5) # This assumes at most 5 stages!!
         ax.set_title('Stage')
         ax.set_xlabel('time (days)')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -174,7 +174,7 @@ class BaseMatplotLibViz(PandemicViz):
         if epoch is not None:
             name = str(int(epoch)) + "_" + name
         plt.savefig(f"pandemic_policy/{name}")
-        #plt.show()
+        plt.show()
 
 
 class SimViz(BaseMatplotLibViz):
