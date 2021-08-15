@@ -472,24 +472,18 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
 
-        logger.log("Collecting samples for evaluation")
-        if eval_paths:
-            test_paths = eval_paths
-        else:
-            test_paths = self.get_eval_paths()
-        statistics.update(eval_util.get_generic_path_information(
-            test_paths, stat_prefix="Test",
-        ))
         # if len(self._exploration_paths) > 0:
         #     statistics.update(eval_util.get_generic_path_information(
         #         self._exploration_paths, stat_prefix="Exploration",
         #     ))
-        if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(test_paths, logger=logger)
-        if hasattr(self.env, "get_diagnostics"):
-            statistics.update(self.env.get_diagnostics(test_paths))
+        #if hasattr(self.env, "log_diagnostics"):
+        #    self.env.log_diagnostics(test_paths, logger=logger)
+        #if hasattr(self.env, "get_diagnostics"):
+        #    statistics.update(self.env.get_diagnostics(test_paths))
         statistics['Risk'] = np.mean(self.env.get_attr('avg_risk'))
         statistics['MagniRisk'] = np.mean(self.env.get_attr('avg_magni_risk'))
+        statistics['EpisodeProxyReward'] = np.mean(self.env.get_attr('episode_rew'))
+        statistics['EpisodeTrueReward'] = np.mean(self.env.get_attr('episode_true_rew'))
 
         gylcemic_report = self.env.get_attr('glycemic_report')
         bg = [r[0] for r in gylcemic_report]
@@ -497,6 +491,9 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         hypo = np.mean([r[2] for r in gylcemic_report])
         hyper = np.mean([r[3] for r in gylcemic_report])
         ins = [r[4] for r in gylcemic_report]
+
+        # Catastrophic failure occurs if blood glucose level falls below 5 dg / mL
+        statistics['CatastrophicProportion'] = np.mean([np.any(b < 5) for b in bg]) 
         statistics['Glucose'] = np.mean([np.mean(b) for b in bg])
         statistics['MinBG'] = np.mean([min(b) for b in bg])
         statistics['MaxBG'] = np.mean([max(b) for b in bg])
@@ -508,12 +505,19 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics['Hypoglycemic'] = hypo
         statistics['Hyperglycemic'] = hyper
 
+        logger.log("Collecting samples for evaluation")
+        if eval_paths:
+            test_paths = eval_paths
+        else:
+            test_paths = self.get_eval_paths()
+        statistics.update(eval_util.get_generic_path_information(
+            test_paths, stat_prefix="Test",
+        ))
         average_returns = eval_util.get_average_returns(test_paths)
         true_returns = eval_util.get_average_true_returns(test_paths)
-        fail_prop = np.mean([np.any(b < 5) for b in bg]) # Catastrophic failure occurs if blood glucose level falls below 5 dg / mL
-        statistics['AverageReturn'] = average_returns
-        statistics['TrueReturn'] = true_returns
-        statistics['CatastrophicProportion'] = fail_prop
+        statistics['EvalProxyReward'] = average_returns
+        statistics['EvalTrueReward'] = true_returns
+        
         wandb.log(statistics)
         for key, value in statistics.items():
             if key != 'TrueReturn' and key != 'CatastrophicProportion':

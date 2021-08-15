@@ -42,6 +42,8 @@ def reward_name_to_function(reward_name):
         reward_fun = reward_functions.magni_bg_insulin
     elif reward_name == 'magni_bg_insulin_true':
         reward_fun = reward_functions.magni_bg_insulin_true
+    elif reward_name == 'threshold_bg':
+        reward_fun = reward_functions.threshold
     else:
         raise ValueError('{} not a proper reward_name'.format(reward_name))
     return reward_fun

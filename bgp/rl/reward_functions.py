@@ -104,6 +104,12 @@ def magni_bg_insulin_true(bg_hist, insulin_hist, **kwargs):
     risk = 10 * (fBG)**2
     return -1*risk - 25 * insulin_hist[-1]
 
+def threshold(bg_hist, **kwargs):
+    bg = max(1, bg_hist[-1])
+    if bg < 140:
+        return -1*min(25, -5/14 * bg + 50)
+    else:
+        return -1*min(25, 5/28 * bg - 25)
 
 def cameron_reward(bg_hist, **kwargs):
     bg = bg_hist[-1]

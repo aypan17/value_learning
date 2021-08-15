@@ -312,6 +312,14 @@ class DeepSACT1DEnv(gym.Env):
     def avg_magni_risk(self):
         return np.mean(self.env.magni_risk_hist[max(self.state_hist, 288):])
 
+    @property 
+    def episode_rew(self):
+        return np.sum(self.env.rew_hist[max(self.state_hist, 288):])
+
+    @property 
+    def episode_true_rew(self):
+        return np.sum(self.env.true_rew_hist[max(self.state_hist, 288):])
+
     @property
     def glycemic_report(self):
         bg = np.array(self.env.BG_hist[max(self.state_hist, 288):])
@@ -320,6 +328,7 @@ class DeepSACT1DEnv(gym.Env):
         hyper = (bg > 180).sum()/len(bg)
         euglycemic = 1 - (hypo+hyper)
         return bg, euglycemic, hypo, hyper, ins
+
 
     def is_done(self):
         return self.env.BG_hist[-1] < self.reset_lim['lower_lim'] or self.env.BG_hist[-1] > self.reset_lim['upper_lim']

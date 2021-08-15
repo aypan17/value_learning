@@ -145,6 +145,9 @@ class T1DSimEnv(object):
         if true_reward_fn is not None:
             true_rew = true_reward_fn(bg_hist=self.BG_hist, cgm_hist=self.CGM_hist, insulin_hist=self.insulin_hist,
                             risk_hist=self.risk_hist)
+
+        self.rew_hist.append(reward)
+        self.true_rew_hist.append(true_rew)
         done = BG < 40 or BG > 350
         obs = Observation(CGM=CGM)
 
@@ -179,6 +182,8 @@ class T1DSimEnv(object):
         self.magni_risk_hist = [magni_risk]
         self.CHO_hist = [0]
         self.insulin_hist = [0]
+        self.rew_hist = [0]
+        self.true_rew_hist = [0]
 
     def reset(self, sensor_seed_change=True, incr_day=0):
         self.patient.reset()
@@ -224,5 +229,7 @@ class T1DSimEnv(object):
         df['HBGI'] = pd.Series(self.HBGI_hist)
         df['Risk'] = pd.Series(self.risk_hist)
         df['Magni_Risk'] = pd.Series(self.magni_risk_hist)
+        df['Reward'] = pd.Series(self.rew_hist)
+        df['True reward'] = pd.Series(self.true_rew_hist)
         df = df.set_index('Time')
         return df

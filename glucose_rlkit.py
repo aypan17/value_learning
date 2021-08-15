@@ -33,7 +33,7 @@ device = 'cuda:0' if 'CUDA_VISIBLE_DEVICES' in os.environ else 'cpu'  # the cuda
 n_cpus = int(sys.argv[5])
 
 # General utility parameters
-seed_options = [2]#np.random.randint(1, 2**31)]#i for i in range(3)]
+seed_options = [1]#np.random.randint(1, 2**31)]#i for i in range(3)]
 validation_seed_offset = 1000000
 test_seed_offset = 2000000
 # the set of virtual patients to run for, valid options are [child/adolescent/adult]#[001/.../010]
@@ -62,7 +62,7 @@ use_ground_truth = False
 time_std = None
 
 # Varying amount of evaluation
-num_eval_runs = 100
+num_eval_runs = 5
 
 # Some important training parameters
 num_steps_per_epoch = 5760
@@ -98,7 +98,7 @@ if not os.path.exists(full_path) and not finish:
 if transfer_run:
     num_epochs = 50
 else:
-    num_epochs = 300
+    num_epochs = 500
 
 # Overwriting training parameters to make short runs for debugging purposes
 if debug:
