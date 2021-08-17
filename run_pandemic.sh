@@ -2,12 +2,11 @@
 # shellcheck disable=SC2206
 #SBATCH --job-name=pandemic
 #SBATCH --cpus-per-task=16
-# #SBATCH --mem-per-cpu=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
-# #SBATCH --gres gpu:1
-#SBATCH -p 'high'# 'jsteinhardt'
-# #SBATCH -w balrog
+#SBATCH --gres gpu:1
+#SBATCH -p 'jsteinhardt'
+#SBATCH -w balrog
 
 set -x 
 

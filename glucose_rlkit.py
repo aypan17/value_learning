@@ -41,7 +41,7 @@ person_options = (['child#0{}'.format(str(i).zfill(2)) for i in range(1, 11)] +
                   ['adolescent#0{}'.format(str(i).zfill(2)) for i in range(1, 11)] +
                   ['adult#0{}'.format(str(i).zfill(2)) for i in range(1, 11)])
 
-person_options = (['adult#001'])
+person_options = (['adolescent#001'])
 # Transfer
 transfer_run = False  # Used to differentiate RL-Scratch from RL-Trans
 transfer_init = 'fsp'  # The directory where the original trained models are saved

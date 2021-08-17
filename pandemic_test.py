@@ -19,28 +19,28 @@ from sacd.agent import SacdAgent, SharedSacdAgent
 GAMMA = float(sys.argv[10])
 
 def make_cfg():
-    #cfg =  ps.sh.small_town_config
-    #cfg.delta_start_lo = float(sys.argv[7])
-    #cfg.delta_start_hi = float(sys.argv[8])
-    #return cfg
-    sim_config = ps.env.PandemicSimConfig(
-         num_persons=500,
-         location_configs=[
-             ps.env.LocationConfig(ps.env.Home, num=150),
-             ps.env.LocationConfig(ps.env.GroceryStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
-             ps.env.LocationConfig(ps.env.Office, num=2, num_assignees=150, state_opts=dict(visitor_capacity=0)),
-             ps.env.LocationConfig(ps.env.School, num=10, num_assignees=2, state_opts=dict(visitor_capacity=30)),
-             ps.env.LocationConfig(ps.env.Hospital, num=1, num_assignees=15, state_opts=dict(patient_capacity=5)),
-             ps.env.LocationConfig(ps.env.RetailStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
-             ps.env.LocationConfig(ps.env.HairSalon, num=2, num_assignees=3, state_opts=dict(visitor_capacity=5)),
-             ps.env.LocationConfig(ps.env.Restaurant, num=1, num_assignees=6, state_opts=dict(visitor_capacity=30)),
-             ps.env.LocationConfig(ps.env.Bar, num=1, num_assignees=3, state_opts=dict(visitor_capacity=30))
-         ],
-         person_routine_assignment=ps.sh.DefaultPersonRoutineAssignment(),
-	 delta_start_lo = float(sys.argv[6]),
-	 delta_start_hi = float(sys.argv[7])
-    )
-    return sim_config
+    cfg =  ps.sh.small_town_config
+    cfg.delta_start_lo = float(sys.argv[6])
+    cfg.delta_start_hi = float(sys.argv[7])
+    return cfg
+  #   sim_config = ps.env.PandemicSimConfig(
+  #        num_persons=500,
+  #        location_configs=[
+  #            ps.env.LocationConfig(ps.env.Home, num=150),
+  #            ps.env.LocationConfig(ps.env.GroceryStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
+  #            ps.env.LocationConfig(ps.env.Office, num=2, num_assignees=150, state_opts=dict(visitor_capacity=0)),
+  #            ps.env.LocationConfig(ps.env.School, num=10, num_assignees=2, state_opts=dict(visitor_capacity=30)),
+  #            ps.env.LocationConfig(ps.env.Hospital, num=1, num_assignees=15, state_opts=dict(patient_capacity=5)),
+  #            ps.env.LocationConfig(ps.env.RetailStore, num=2, num_assignees=5, state_opts=dict(visitor_capacity=30)),
+  #            ps.env.LocationConfig(ps.env.HairSalon, num=2, num_assignees=3, state_opts=dict(visitor_capacity=5)),
+  #            ps.env.LocationConfig(ps.env.Restaurant, num=1, num_assignees=6, state_opts=dict(visitor_capacity=30)),
+  #            ps.env.LocationConfig(ps.env.Bar, num=1, num_assignees=3, state_opts=dict(visitor_capacity=30))
+  #        ],
+  #        person_routine_assignment=ps.sh.DefaultPersonRoutineAssignment(),
+	 # delta_start_lo = float(sys.argv[6]),
+	 # delta_start_hi = float(sys.argv[7])
+  #   )
+  #   return sim_config
 
 def make_reg():
     return ps.sh.austin_regulations
@@ -99,10 +99,10 @@ def init(args):
 #                RewardFunctionFactory.default(RewardFunctionType.ELDERLY_HOSPITALIZED),
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
-                                              threshold=sim_config.max_hospital_capacity),
-                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABSOLUTE,
-                                              summary_type=InfectionSummary.CRITICAL),
-                                              #threshold=3*sim_config.max_hospital_capacity),
+                                              threshold=sim_config.max_hospital_capacity / sim_config.num_persons),
+                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
+                                              summary_type=InfectionSummary.CRITICAL,
+                                              threshold=3*sim_config.max_hospital_capacity / sim_config.num_persons),
                 RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
                                               num_stages=len(regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
@@ -117,8 +117,8 @@ def init(args):
             done_fn=done_fn,
             reward_fn=reward_fn,
             constrain=True,
-            obs_history_size=4,
-            num_days_in_obs=5
+            obs_history_size=3,
+            num_days_in_obs=8
         )
     env = gym.get_multi_env(n=n_cpus) if n_cpus > 1 else gym.get_single_env()
     return env, gym.get_single_env(), viz
@@ -127,9 +127,9 @@ def train(env, test_env, viz, args):
     model = make_model(env)
     print("Running model")
     if args.test:
-        model.learn(total_timesteps = 2048, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+        model.learn(total_timesteps = 320, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
     else:
-        model.learn(total_timesteps = 2048 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+        model.learn(total_timesteps = 3072 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
     return model    
 
 def train_sacd(env, test_env, viz, args):

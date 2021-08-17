@@ -68,6 +68,10 @@ class BaseMatplotLibViz(PandemicViz):
         self._gts = []
         self._stages = []
 
+        self._gis_std = []
+        self._gts_std = []
+        self._stages_std = []
+
         self._gis_legend = []
 
         plt.rc('axes', prop_cycle=cycler(color=inf_colors))
@@ -76,6 +80,7 @@ class BaseMatplotLibViz(PandemicViz):
     @classmethod
     def from_config(cls: Type['BaseMatplotLibViz'], sim_config: PandemicSimConfig) -> 'BaseMatplotLibViz':
         return cls(num_persons=sim_config.num_persons, max_hospital_capacity=sim_config.max_hospital_capacity)
+
 
     def record_obs(self, obs: PandemicObservation) -> None:
         if len(self._gis_legend) == 0:
@@ -102,29 +107,39 @@ class BaseMatplotLibViz(PandemicViz):
     def plot_gis(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
         gis = np.vstack(self._gis).squeeze()
-        ax.plot(gis)
-        ax.legend(self._gis_legend, loc=1)
-        ax.set_ylim(-0.1, 1.01)
-        ax.set_title('Global Infection Summary')
-        ax.set_xlabel('time (days)')
-        ax.set_ylabel('proportion')
-        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        gis_std = np.vstack(self._gis_std).squeeze()
+        days = np.arange(len(gis))
+        for mean, std in zip(np.hsplit(gis, 5), np.hsplit(gis_std, 5)):
+            ax.plot(days, mean)
+            ax.fill_between(days, (mean-std).squeeze(1), (mean+std).squeeze(1), alpha=0.1)
+            ax.legend(self._gis_legend, loc=1)
+            ax.set_ylim(-0.1, 1.01)
+            ax.set_title('Global Infection Summary')
+            ax.set_xlabel('time (days)')
+            ax.set_ylabel('proportion')
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     def plot_gts(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
         gts = np.vstack(self._gts).squeeze()
-        ax.plot(gts)
-        ax.legend(self._gis_legend, loc=1)
-        ax.set_ylim(-0.1, 1.01)
-        ax.set_title('Global Testing Summary')
-        ax.set_xlabel('time (days)')
-        ax.set_ylabel('proportion')
-        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        gts_std = np.vstack(self._gts_std).squeeze()
+        days = np.arange(len(gts))
+        for mean, std in zip(np.hsplit(gts, 5), np.hsplit(gts_std, 5)):
+            ax.plot(days, mean)
+            ax.fill_between(days, (mean-std).squeeze(1), (mean+std).squeeze(1), alpha=0.1)
+            ax.legend(self._gis_legend, loc=1)
+            ax.set_ylim(-0.1, 1.01)
+            ax.set_title('Global Testing Summary')
+            ax.set_xlabel('time (days)')
+            ax.set_ylabel('proportion')
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     def plot_critical_summary(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
         gis = np.vstack(self._gis).squeeze()
+        gis_std = np.vstack(self._gis_std).squeeze()
         ax.plot(self._num_persons * gis[:, self._critical_index])
+        ax.fill_between(np.arange(len(gis)), (gis-gis_std)[:, self._critical_index], (gis+gis_std)[:, self._critical_index])
         ax.plot(np.arange(gis.shape[0]), np.ones(gis.shape[0]) * self._max_hospital_capacity, 'y')
         ax.legend([InfectionSummary.CRITICAL.value, 'Max hospital capacity'], loc=1)
         ax.set_ylim(-0.1, self._max_hospital_capacity * 3)
@@ -135,8 +150,11 @@ class BaseMatplotLibViz(PandemicViz):
 
     def plot_stages(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
-        stages = np.concatenate(self._stages).squeeze()
-        ax.plot(stages)
+        days = np.arange(len(self._stages))
+        stages = np.array(self._stages)
+        stages_std = np.array(self._stages_std)
+        ax.plot(days, stages)
+        ax.fill_between(days, stages - stages_std, stages + stages_std, alpha=0.1)
         ax.set_ylim(-0.1, 5) # This assumes at most 5 stages!!
         ax.set_title('Stage')
         ax.set_xlabel('time (days)')
@@ -274,30 +292,53 @@ class GymViz(BaseMatplotLibViz):
         :param max_hospital_capacity: maximum hospital capacity, if None, it is set to 1% of the number of persons
         """
         super().__init__(num_persons=num_persons, max_hospital_capacity=max_hospital_capacity)
-        self._rewards = []
-        self._true_rewards = []
+        self._rew = []
+        self._rew_std = []
+        self._true_rew = []
+        self._true_rew_std = []
 
     def plot_cumulative_reward(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
-        ax.plot(np.cumsum(self._rewards))
+        days = np.arange(len(self._rew))
+        ax.plot(days, np.cumsum(self._rew))
+        #ax.fill_between(days, true_rew - np.array(self._rew_std), true_rew + np.array(self._rew_std), alpha=0.1)
         ax.set_title('Cumulative Reward')
         ax.set_xlabel('time (days)')
 
     def plot_cumulative_true_reward(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
-        ax.plot(np.cumsum(self._true_rewards))
+        days = np.arange(len(self._true_rew))
+        true_rew = np.cumsum(self._true_rew)
+        ax.plot(days, true_rew)
+        #ax.fill_between(days, true_rew - np.array(self._true_rew_std), true_rew + np.array(self._true_rew_std), alpha=0.1)
         ax.set_title('Cumulative True Reward')
         ax.set_xlabel('time (days)')
 
     def record(self, data: Any) -> None:
         if isinstance(data, tuple):
             obs, reward, true_rew = data
-            self._rewards.append(reward)
-            self._true_rewards.append(true_rew)
+            self._rews.append(reward)
+            self._true_rew.append(true_rew)
         else:
             obs = data
         assert isinstance(obs, PandemicObservation)
         self.record_obs(obs)
+
+    def record_list(self, obs, gis, gts, stage, rew, true_rew) -> None:
+        if len(self._gis_legend) == 0:
+            self._gis_legend = list(obs.infection_summary_labels)
+            self._critical_index = self._gis_legend.index(InfectionSummary.CRITICAL.value)
+
+        self._gis.append(np.mean(gis, axis=0))
+        self._gis_std.append(np.std(gis, axis=0))
+        self._gts.append(np.mean(gts, axis=0))
+        self._gts_std.append(np.std(gts, axis=0))
+        self._stages.append(np.mean(stage))
+        self._stages_std.append(np.std(stage))
+        self._rew.append(np.mean(rew))
+        self._rew_std.append(np.std(rew))
+        self._true_rew.append(np.mean(true_rew))
+        self._true_rew_std.append(np.std(true_rew))
 
     def reset(self):
         self._axs = list()
@@ -307,9 +348,15 @@ class GymViz(BaseMatplotLibViz):
         self._gts = []
         self._stages = []
 
-        self._gis_legend = []
+        self._gis_std = []
+        self._gts_std = []
+        self._stages_std = []
 
-        self._rewards = []
-        self._true_rewards = []
+        self._rew = []
+        self._rew_std = []
+        self._true_rew = []
+        self._true_rew_std = []
+
+        self._gis_legend = []
 
         plt.rc('axes', prop_cycle=cycler(color=inf_colors))

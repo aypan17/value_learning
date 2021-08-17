@@ -116,10 +116,10 @@ class PandemicGymEnv(gym.Env):
             reward_fns=[
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
-                                              threshold=sim_config.max_hospital_capacity),
+                                              threshold=sim_config.max_hospital_capacity / sim_config.num_persons),
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
-                                              threshold=3 * sim_config.max_hospital_capacity),
+                                              threshold=3 * sim_config.max_hospital_capacity / sim_config.num_persons),
                 RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
                                               num_stages=len(pandemic_regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
@@ -292,10 +292,10 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
             reward_fns=[
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
-                                              threshold=sim_config.max_hospital_capacity),
+                                              threshold=sim_config.max_hospital_capacity / sim_config.num_persons),
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
-                                              threshold=3 * sim_config.max_hospital_capacity),
+                                              threshold=3 * sim_config.max_hospital_capacity / sim_config.num_persons),
                 RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
                                               num_stages=len(pandemic_regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
@@ -308,16 +308,16 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
             reward_fns=[
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
-                                              threshold=sim_config.max_hospital_capacity),
+                                              threshold=sim_config.max_hospital_capacity / sim_config.num_persons),
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD,
                                               summary_type=InfectionSummary.CRITICAL,
-                                              threshold=3 * sim_config.max_hospital_capacity),
+                                              threshold=3 * sim_config.max_hospital_capacity / sim_config.num_persons),
                 RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
                                               num_stages=len(pandemic_regulations)),
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
                                               num_stages=len(pandemic_regulations))
             ],
-            weights=[.4, 1, .1, 0.02]
+            weights=[.4, 1, 1, 0.02]
         )
 
         return PandemicPolicyGymEnv(pandemic_sim=sim,

@@ -69,7 +69,7 @@ class WandbCallback(BaseCallback):
 
 		:return: (bool) If the callback returns False, training is aborted early.
 		"""
-		list_obs = self.training_env.get_attr("observation") if self.multi else self.training_env.get_attr("observation")
+		list_obs = self.training_env.get_attr("observation")
 		rew = self.training_env.get_attr("last_reward")
 		true_rew = self.training_env.get_attr("get_true_reward")
 		infection_data = np.zeros((1, 5))
@@ -86,7 +86,11 @@ class WandbCallback(BaseCallback):
 		self.episode_threshold.append(np.sum(threshold_data) / len(list_obs))
 		
 		if self.record:
-			self.viz.record((list_obs[0], rew[0], true_rew[0]))
+			gis = np.array([obs.global_infection_summary[-1] for obs in list_obs]).squeeze(1)
+			gts = np.array([obs.global_testing_summary[-1] for obs in list_obs]).squeeze(1)
+			stage = np.array([obs.stage[-1].item() for obs in list_obs])
+			#self.viz.record((list_obs[0], rew[0], true_rew[0]))
+			self.viz.record_list(obs, gis, gts, stage, rew, true_rew)
 		return True
 
 	def _on_rollout_end(self) -> None:
@@ -95,8 +99,8 @@ class WandbCallback(BaseCallback):
 		"""
 		infection_summary = np.sum(self.episode_infection_data, axis=0)
 		horizon = len(self.episode_rewards)
-		true_w = np.geomspace(1, 0.99**(horizon-1), num=horizon)
-		proxy_w = np.geomspace(1, self.gamma**(horizon-1), num=horizon)
+		true_w = np.geomspace(1, 1, num=horizon)
+		proxy_w = np.geomspace(1, 1, num=horizon)
 		n_ppl = np.sum(self.episode_infection_data[1])
 
 		wandb.log({"reward": np.dot(proxy_w, np.array(self.episode_rewards)),
