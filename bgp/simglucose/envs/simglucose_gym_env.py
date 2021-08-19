@@ -42,7 +42,7 @@ class DeepSACT1DEnv(gym.Env):
                  custom_meal_size=1, starting_glucose=None,
                  harrison_benedict=False, restricted_carb=False, meal_duration=1, rolling_insulin_lim=None,
                  universal=False, unrealistic=False, reward_bias=0, carb_error_std=0, carb_miss_prob=0, source_dir=None,
-                 true_reward_fn=None, **kwargs):
+                 true_reward_fn=None, use_only_during_day=False, **kwargs):
         '''
         patient_name must be 'adolescent#001' to 'adolescent#010',
         or 'adult#001' to 'adult#010', or 'child#001' to 'child#010'
@@ -111,6 +111,10 @@ class DeepSACT1DEnv(gym.Env):
             start_time = datetime(2018, 1, 1, 0, 0, 0)
         else:
             start_time = datetime(self.start_date.year, self.start_date.month, self.start_date.day, 0, 0, 0)
+        self.use_only_during_day = use_only_during_day
+
+        if self.use_only_during_day:
+            start_time = datetime(2018, 1, 1, 5, 0, 0)
         assert bw_meals  # otherwise code wouldn't make sense
         if reset_lim is None:
             self.reset_lim = {'lower_lim': 10, 'upper_lim': 1000}
@@ -206,6 +210,8 @@ class DeepSACT1DEnv(gym.Env):
         if done and self.termination_penalty is not None:
             reward = reward - self.termination_penalty
         reward = reward + self.reward_bias
+        if self.use_only_during_day and (self.env.time.hour > 20 or self.env.time.hour < 5):
+            done = True
         return state, reward, done, info
 
     def announce_meal(self, meal_announce=None):
@@ -329,6 +335,10 @@ class DeepSACT1DEnv(gym.Env):
         euglycemic = 1 - (hypo+hyper)
         return bg, euglycemic, hypo, hyper, ins
 
+    @property 
+    def in_use(self):
+        if self.use_only_during_day and (self.env.time.hour > 20 or self.env.time.hour < 5):
+            return False
 
     def is_done(self):
         return self.env.BG_hist[-1] < self.reset_lim['lower_lim'] or self.env.BG_hist[-1] > self.reset_lim['upper_lim']

@@ -82,7 +82,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         if collection_mode == 'batch':
             assert num_updates_per_epoch is not None
 
-        self.training_env = env#training_env or pickle.loads(pickle.dumps(env))
+        self.training_env = training_env#training_env or pickle.loads(pickle.dumps(env))
         self.exploration_policy = exploration_policy
         self.num_epochs = num_epochs
         self.num_env_steps_per_epoch = num_steps_per_epoch
@@ -122,12 +122,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.action_space = env.action_space
         self.obs_space = env.observation_space
         self.env = env
-        for f in self.env.get_attr('increment_seed'):
-            f(validation_seed_offset)  # This is a pretty big assumption
+        #for f in self.training_env.get_attr('increment_seed'):
+        #    f(validation_seed_offset)  # This is a pretty big assumption
         if replay_buffer is None:
             replay_buffer = EnvReplayBuffer(
                 self.replay_buffer_size,
-                self.env,
+                self.training_env,
             )
         self.replay_buffer = replay_buffer
         self._n_env_steps_total = 0
@@ -480,12 +480,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         #    self.env.log_diagnostics(test_paths, logger=logger)
         #if hasattr(self.env, "get_diagnostics"):
         #    statistics.update(self.env.get_diagnostics(test_paths))
-        statistics['Risk'] = np.mean(self.env.get_attr('avg_risk'))
-        statistics['MagniRisk'] = np.mean(self.env.get_attr('avg_magni_risk'))
-        statistics['EpisodeProxyReward'] = np.mean(self.env.get_attr('episode_rew'))
-        statistics['EpisodeTrueReward'] = np.mean(self.env.get_attr('episode_true_rew'))
+        statistics['Risk'] = np.mean(self.training_env.get_attr('avg_risk'))
+        statistics['MagniRisk'] = np.mean(self.training_env.get_attr('avg_magni_risk'))
+        statistics['EpisodeProxyReward'] = np.mean(self.training_env.get_attr('episode_rew'))
+        statistics['EpisodeTrueReward'] = np.mean(self.training_env.get_attr('episode_true_rew'))
 
-        gylcemic_report = self.env.get_attr('glycemic_report')
+        gylcemic_report = self.training_env.get_attr('glycemic_report')
         bg = [r[0] for r in gylcemic_report]
         euglycemic = np.mean([r[1] for r in gylcemic_report])
         hypo = np.mean([r[2] for r in gylcemic_report])

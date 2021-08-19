@@ -6,7 +6,7 @@
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:1
 #SBATCH -p 'jsteinhardt'
-#SBATCH -w shadowfax
+#SBATCH -w smaug
 # set -x 
 
 # simulate conda activate flow
@@ -18,10 +18,11 @@ NAME=$1
 WIDTH=$2
 PROXY=$3
 TRUE=$4
+DAY=$5
 
 if [ "${NAME}" = "test" ]; then
-	python3 glucose_rlkit.py $NAME 4 'magni_bg_insulin' 'magni_bg_insulin_true' $SLURM_CPUS_PER_TASK 'True'
+	python3 glucose_rlkit.py $NAME 4 'magni_bg_insulin' 'magni_bg_insulin_true' 'True' 'True' $SLURM_CPUS_PER_TASK
 else
-	python3 glucose_rlkit.py $NAME $WIDTH $PROXY $TRUE $SLURM_CPUS_PER_TASK 'False'
+	python3 glucose_rlkit.py $NAME $WIDTH $PROXY $TRUE $DAY 'False' $SLURM_CPUS_PER_TASK 
 fi
 

@@ -247,11 +247,42 @@ def run_em_sac(variant):
                                 reward_bias=variant['reward_bias'], carb_error_std=variant['carb_error_std'],
                                 carb_miss_prob=variant['carb_miss_prob'], source_dir=variant['source_dir'],
                                 true_reward_fn=true_reward_fn)
+    training_env = bgp_env.DeepSACT1DEnv(reward_fun=reward_fun,
+                                patient_name=variant['patient_name'],
+                                seeds={'numpy': variant['base_seed'],
+                                       'sensor': variant['base_seed'],
+                                       'scenario': variant['base_seed']},
+                                reset_lim=variant['reset_lim'], time=variant['include_time'],
+                                meal=variant['include_meal'], bw_meals=variant['bw_meals'],
+                                load=variant['load'], use_pid_load=variant['use_pid_load'],
+                                hist_init=variant['hist_init'],
+                                gt=variant['use_ground_truth'], n_hours=variant['n_hours'],
+                                norm=variant['norm'], time_std=variant['time_std'],
+                                use_old_patient_env=variant['use_old_patient_env'], action_cap=variant['action_cap'],
+                                action_bias=variant['action_bias'], action_scale=variant['action_scale'],
+                                basal_scaling=variant['basal_scaling'],
+                                meal_announce=variant['meal_announce'], residual_basal=variant['residual_basal'],
+                                residual_bolus=variant['residual_bolus'], residual_PID=variant['residual_PID'],
+                                fake_gt=variant['fake_gt'], fake_real=variant['fake_real'],
+                                suppress_carbs=variant['suppress_carbs'], limited_gt=variant['limited_gt'],
+                                termination_penalty=variant['termination_penalty'], weekly=variant['weekly'],
+                                update_seed_on_reset=variant['update_seed_on_reset'],
+                                deterministic_meal_size=variant['deterministic_meal_size'],
+                                deterministic_meal_time=variant['deterministic_meal_time'],
+                                deterministic_meal_occurrence=variant['deterministic_meal_occurrence'],
+                                harrison_benedict=variant['harrison_benedict_sched'],
+                                restricted_carb=variant['restricted_sched'], meal_duration=variant['meal_duration'],
+                                rolling_insulin_lim=variant['rolling_insulin_lim'], universal=variant['universal'],
+                                reward_bias=variant['reward_bias'], carb_error_std=variant['carb_error_std'],
+                                carb_miss_prob=variant['carb_miss_prob'], source_dir=variant['source_dir'],
+                                true_reward_fn=true_reward_fn, use_only_during_day=variant['use_only_during_day'])
+
     n_cpus = variant['algo_params']['n_cpus']
     env = env.get_multi_env(n=n_cpus) if n_cpus > 1 else env.get_single_env()
+    training_env = training_env.get_multi_env(n=n_cpus) if n_cpus > 1 else training_env.get_single_env()
 
-    obs_dim = env.observation_space.shape
-    action_dim = int(np.prod(env.action_space.shape))
+    obs_dim = training_env.observation_space.shape
+    action_dim = int(np.prod(training_env.action_space.shape))
 
     if variant['use_ground_truth']:
         obs_dim = int(np.prod(obs_dim))
@@ -358,6 +389,7 @@ def run_em_sac(variant):
             replay_buffer = param_dict['replay_buffer']
     algorithm = SoftActorCritic(
         env=env,
+        training_env=training_env, 
         policy=policy,
         qf=qf,
         vf=vf,
