@@ -25,44 +25,32 @@ import numpy as np
 import wandb
 
 # Callbacks
-# class RewardCallback(DefaultCallbacks):
-#     def on_episode_start(self, *, worker, base_env, policies, episode, env_index, **kwargs):
-#         episode.user_data["true_reward"] = []
-#         episode.user_data["reward"] = []
+# Custom state can be stored for the episode in the info["episode"].user_data dict
+# Custom scalar metrics reported by saving values to the info["episode"].custom_metrics dict
+def on_episode_start(info):
+    episode = info["episode"]
+    episode.user_data["true_reward"] = []
 
-#     def on_episode_step(self, *, worker, base_env, episode, env_index, **kwargs):
-#         env = base_env.vector_env.envs[0]
-#         actions = episode.prev_action_for()
+def on_episode_step(info):
+    episode = info["episode"]
+    environment = info["env"]
+    env = environment.vector_env.envs[0]
+    actions = episode.last_action_for()
 
-#         true_rew = 0
-#         vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
-#         if all(vel > -100):
-#             true_rew += REWARD_REGISTRY['vel'](env, actions)
-#             true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
+    rew = 0
+    vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
+    if all(vel > -100):
+        rew += REWARD_REGISTRY['vel'](env, actions)
+        rew += 20 * REWARD_REGISTRY['accel'](env, actions)
 
-#         # record
-#         episode.user_data["true_reward"].append(true_rew)
-#         episode.user_data["reward"].append(episode.prev_reward_for())
+    # reward average velocity
+    episode.user_data["true_reward"].append(rew)
 
-#     def on_episode_step_multi(self, *, worker, base_env, policies, episode, env_index, **kwargs):
-#         env = base_env.envs[0]
-#         actions = episode.prev_action_for()
 
-#         true_rew = 0
-#         vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
-#         if all(vel > -100):
-#             true_rew += REWARD_REGISTRY['vel'](env, actions)
-#             true_rew += 20 * REWARD_REGISTRY['accel'](env, actions)
-
-#         # reward average velocity
-#         episode.user_data["true_reward"].append(true_rew)
-#         episode.user_data["reward"].append(episode.prev_reward_for())
-
-#     def on_episode_end(self, *, worker, base_env, policies, episode, env_index, **kwargs):
-#         true_rew = np.sum(episode.user_data["true_reward"])
-#         reward = np.sum(episode.user_data["reward"])
-#         episode.custom_metrics["true_reward"] = true_rew
-#         episode.custom_metrics["reward"] = reward
+def on_episode_end(info):
+    episode = info["episode"]
+    sum_rew = np.sum(episode.user_data["true_reward"])
+    episode.custom_metrics["true_reward"] = sum_rew
 
 
 def parse_args(args):
@@ -193,11 +181,11 @@ def setup_exps_rllib(flow_params,
     if policies_to_train is not None:
         config['multiagent'].update({'policies_to_train': policies_to_train})
 
-    # config['callbacks'] = {
-    #                 "on_episode_start": on_episode_start,
-    #                 "on_episode_step": on_episode_step,
-    #                 "on_episode_end": on_episode_end,
-    #             }
+    config['callbacks'] = {
+                    "on_episode_start": on_episode_start,
+                    "on_episode_step": on_episode_step,
+                    "on_episode_end": on_episode_end,
+                }
     #config['callbacks'] = RewardCallback
     create_env, gym_name = make_create_env(params=flow_params, reward_specification=reward_specification)
 

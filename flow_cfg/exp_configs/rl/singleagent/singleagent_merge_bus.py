@@ -26,6 +26,7 @@ N_CPUS = 2
 
 # inflow rate at the highway
 FLOW_RATE = 7500
+MERGE_RATE = 450
 # percent of autonomous vehicles
 RL_PENETRATION = [0.25, 0.25, 0.33][EXP_NUM]
 # num_rl term (see ADDITIONAL_ENV_PARAMs)
@@ -48,7 +49,7 @@ vehicles.add(
     car_following_params=SumoCarFollowingParams(
         speed_mode="obey_safe_speed",
     ),
-    num_vehicles=5)
+    num_vehicles=2)
 vehicles.add(
     veh_id="bus",
     acceleration_controller=(RLController, {}),
@@ -70,20 +71,23 @@ vehicles.add(
 inflow = InFlows()
 inflow.add(
     veh_type="human",
+    name="human",
     edge="inflow_highway",
-    vehs_per_hour=(1 - RL_PENETRATION) * FLOW_RATE,
+    vehs_per_hour=FLOW_RATE,
     departLane="free",
     departSpeed=10)
 inflow.add(
-    veh_type="rl",
-    edge="inflow_highway",
-    vehs_per_hour=RL_PENETRATION * FLOW_RATE,
-    departLane="free",
-    departSpeed=10)
+     veh_type="human",
+     name="human_merge",
+     edge="inflow_merge",
+     vehs_per_hour=(1-RL_PENETRATION) * MERGE_RATE,
+     departLane="free",
+     departSpeed=7.5)
 inflow.add(
     veh_type="bus",
+    name="bus",
     edge="inflow_merge",
-    vehs_per_hour=200,
+    vehs_per_hour=RL_PENETRATION * MERGE_RATE,
     departLane="free",
     departSpeed=7.5)
 

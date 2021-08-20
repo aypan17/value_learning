@@ -462,6 +462,11 @@ def miles_per_gallon(env, veh_ids=None, gain=.001):
     return mpg * gain
 
 ###################################### REWARD REGISTRY ######################################
+def upweight_bus_vel(env, rl_actions):
+    bus_vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids() if veh_id[:3] == 'bus'])
+    other_vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids() if veh_id[:3] != 'bus'])
+    return 60 * np.mean(bus_vel) + np.mean(other_vel)
+
 def global_vel_all(env, rl_actions):
     vel = np.array([
         env.k.vehicle.get_speed(veh_id)
@@ -533,6 +538,8 @@ def penalize_cars(env, rl_actions):
     return -len(env.k.vehicle.get_ids())
 
 REWARD_REGISTRY = {
+    "bus_vel": upweight_bus_vel,
+    "bus": upweight_bus_vel,
     "vel": global_vel_all,
     "velocity": global_vel_all,
     "desired_vel": desired_velocity_all,
