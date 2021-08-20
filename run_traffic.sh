@@ -56,10 +56,6 @@ srun --nodes=1 --ntasks=1 -w "$head_node" \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --block & # --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
 # __doc_head_ray_end__
 
-<<<<<<< HEAD
-
-=======
->>>>>>> savio
 # __doc_script_start__
 CONFIG=$1
 EXP=$2
