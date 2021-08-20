@@ -6,7 +6,7 @@
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:1
 #SBATCH -p 'jsteinhardt'
-#SBATCH -w smaug
+#SBATCH -w shadowfax
 # set -x 
 
 # simulate conda activate flow

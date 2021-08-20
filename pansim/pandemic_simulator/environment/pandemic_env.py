@@ -317,7 +317,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                 RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
                                               num_stages=len(pandemic_regulations))
             ],
-            weights=[.4, 1, 1, 0.02]
+            weights=[.4, 1, 10, 0.02]
         )
 
         return PandemicPolicyGymEnv(pandemic_sim=sim,

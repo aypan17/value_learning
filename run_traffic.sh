@@ -44,7 +44,7 @@ echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
-    ray start --head --node-ip-address="$head_node_ip" --port=$port \
+    ray start --head --node-ip-address="$head_node_ip" --redis-port=$port \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --block & # --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
 # __doc_head_ray_end__
 
@@ -59,18 +59,18 @@ DEPTH=$6
 CONFIG=$7
 
 if [ "${EXP}" = "test" ]; then
-    python3 -u traffic_savio.py singleagent_merge "test" delay,still 1,0.2 32 3 "$SLURM_CPUS_PER_TASK" --num_steps 4 --rollout_size 1 --horizon 300 --checkpoint 1 --test
+    python3 -u traffic_savio.py singleagent_merge_bus "test" delay,still 1,0.2 32 3 --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 3 --rollout_size 4 --horizon 300 --checkpoint 1 --test
     exit 0 
 fi
 
 if [ "${CONFIG}" = "ss" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" 
 elif [ "${CONFIG}" = "sm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 7 --horizon 300 --multi
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 7 --horizon 300 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} "$SLURM_CPUS_PER_TASK" --multi 
+    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --multi 
 else
     echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
     exit 0

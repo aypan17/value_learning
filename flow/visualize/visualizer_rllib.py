@@ -57,6 +57,7 @@ def visualizer_rllib(args):
     print(result_dir)
     config = get_rllib_config(result_dir)
 
+    del config['_fake_gpus']
     # check if we have a multiagent environment but in a
     # backwards compatible way
     if config.get('multiagent', {}).get('policies', None):
