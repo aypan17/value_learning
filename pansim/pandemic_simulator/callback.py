@@ -58,7 +58,6 @@ class WandbCallback(BaseCallback):
 
 		self.n_rollouts += 1
 		self.record = (self.n_rollouts % self.eval_freq == 0)
-		
 
 	def _on_step(self) -> bool:
 		"""

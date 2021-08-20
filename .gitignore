@@ -160,6 +160,7 @@ glucose*/
 .neptune/
 *.png
 *.txt
+.neptune/
 
 # SLURM
 slurm*.out

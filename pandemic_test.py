@@ -57,6 +57,7 @@ def make_model(env):
     # from torch.nn import Softsign, ReLU
     ppo_params = {'n_steps': 192, 
                  'ent_coef': 0.01, 
+<<<<<<< HEAD
                  'learning_rate': 0.0001, 
                  'batch_size': 64,  
                 'gamma': GAMMA}
@@ -73,6 +74,11 @@ def make_model(env):
     d_model = int(sys.argv[8])
     n_layers = int(sys.argv[9])
     net_arch = [d_model] * n_layers if n_layers != 0 else []
+=======
+                 'learning_rate': 0.00005, 
+                 'batch_size': 1024, 
+                'gamma': 0.99}
+>>>>>>> savio
 
     policy_kwargs = {
         "net_arch": [dict(pi=net_arch, vf=net_arch)], 
