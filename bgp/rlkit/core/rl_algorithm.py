@@ -480,12 +480,12 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         #    self.env.log_diagnostics(test_paths, logger=logger)
         #if hasattr(self.env, "get_diagnostics"):
         #    statistics.update(self.env.get_diagnostics(test_paths))
-        statistics['Risk'] = np.mean(self.training_env.get_attr('avg_risk'))
-        statistics['MagniRisk'] = np.mean(self.training_env.get_attr('avg_magni_risk'))
+ 
+        statistics['EpisodeMagniRisk'] = np.mean(self.training_env.get_attr('train_magni_risk'))
         statistics['EpisodeProxyReward'] = np.mean(self.training_env.get_attr('episode_rew'))
         statistics['EpisodeTrueReward'] = np.mean(self.training_env.get_attr('episode_true_rew'))
 
-        gylcemic_report = self.training_env.get_attr('glycemic_report')
+        gylcemic_report = self.training_env.get_attr('train_glycemic_report')
         bg = [r[0] for r in gylcemic_report]
         euglycemic = np.mean([r[1] for r in gylcemic_report])
         hypo = np.mean([r[2] for r in gylcemic_report])
@@ -493,18 +493,19 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         ins = [r[4] for r in gylcemic_report]
 
         # Catastrophic failure occurs if blood glucose level falls below 5 dg / mL
-        statistics['CatastrophicProportion'] = np.mean([np.any(b < 5) for b in bg]) 
-        statistics['Glucose'] = np.mean([np.mean(b) for b in bg])
-        statistics['MinBG'] = np.mean([min(b) for b in bg])
-        statistics['MaxBG'] = np.mean([max(b) for b in bg])
-        statistics['Insulin'] = np.mean([np.mean(i) for i in ins])
-        statistics['MinIns'] = np.mean([min(i) for i in ins])
-        statistics['MaxIns'] = np.mean([min(i) for i in ins])
-        statistics['GLen'] = max([len(b) for b in bg])
-        statistics['Euglycemic'] = euglycemic
-        statistics['Hypoglycemic'] = hypo
-        statistics['Hyperglycemic'] = hyper
+        statistics['EpisodeCatastrophicProportion'] = np.mean([np.any(b < 5) for b in bg]) 
+        statistics['EpisodeGlucose'] = np.mean([np.mean(b) for b in bg])
+        statistics['EpisodeMinBG'] = np.mean([min(b) for b in bg])
+        statistics['EpisodeMaxBG'] = np.mean([max(b) for b in bg])
+        statistics['EpisodeInsulin'] = np.mean([np.mean(i) for i in ins])
+        statistics['EpisodeMinIns'] = np.mean([min(i) for i in ins])
+        statistics['EpisodeMaxIns'] = np.mean([min(i) for i in ins])
+        statistics['EpisodeGLen'] = max([len(b) for b in bg])
+        statistics['EpisodeEuglycemic'] = euglycemic
+        statistics['EpisodeHypoglycemic'] = hypo
+        statistics['EpisodeHyperglycemic'] = hyper
 
+        ### Eval ###
         logger.log("Collecting samples for evaluation")
         if eval_paths:
             test_paths = eval_paths
@@ -515,8 +516,29 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         ))
         average_returns = eval_util.get_average_returns(test_paths)
         true_returns = eval_util.get_average_true_returns(test_paths)
+        statistics['EvalMagniRisk'] = np.mean(self.env.get_attr('avg_magni_risk'))
         statistics['EvalProxyReward'] = average_returns
         statistics['EvalTrueReward'] = true_returns
+
+        gylcemic_report = self.env.get_attr('glycemic_report')
+        bg = [r[0] for r in gylcemic_report]
+        euglycemic = np.mean([r[1] for r in gylcemic_report])
+        hypo = np.mean([r[2] for r in gylcemic_report])
+        hyper = np.mean([r[3] for r in gylcemic_report])
+        ins = [r[4] for r in gylcemic_report]
+
+        # Catastrophic failure occurs if blood glucose level falls below 5 dg / mL
+        statistics['EvalCatastrophicProportion'] = np.mean([np.any(b < 5) for b in bg]) 
+        statistics['EvalGlucose'] = np.mean([np.mean(b) for b in bg])
+        statistics['EvalMinBG'] = np.mean([min(b) for b in bg])
+        statistics['EvalMaxBG'] = np.mean([max(b) for b in bg])
+        statistics['EvalInsulin'] = np.mean([np.mean(i) for i in ins])
+        statistics['EvalMinIns'] = np.mean([min(i) for i in ins])
+        statistics['EvalMaxIns'] = np.mean([min(i) for i in ins])
+        statistics['EvalGLen'] = max([len(b) for b in bg])
+        statistics['EvalEuglycemic'] = euglycemic
+        statistics['EvalHypoglycemic'] = hypo
+        statistics['EvalHyperglycemic'] = hyper
         
         wandb.log(statistics)
         for key, value in statistics.items():

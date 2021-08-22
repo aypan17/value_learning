@@ -44,6 +44,11 @@ class T1DSimEnv(object):
         self.perm_sample_time = sample_time
         self.model = model
         self.model_device = model_device
+        self.rew_hist = [0]
+        self.true_rew_hist = [0]
+        self.magni_risk_hist = [0]
+        self.BG_hist = [0]
+        self.insulin_hist = [0]
         self._reset()
 
 
@@ -76,6 +81,7 @@ class T1DSimEnv(object):
         '''
         action is a namedtuple with keys: basal, bolus
         '''
+        print(action)
         CHO = 0.0
         insulin = 0.0
         BG = 0.0
@@ -168,6 +174,9 @@ class T1DSimEnv(object):
             self.sample_time = self.perm_sample_time
         self.viewer = None
 
+        self.last_BG_hist = self.BG_hist 
+        self.last_insulin_hist = self.insulin_hist
+
         BG = self.patient.observation.Gsub
         horizon = 1
         LBGI, HBGI, risk = risk_index([BG], horizon)
@@ -179,9 +188,12 @@ class T1DSimEnv(object):
         self.risk_hist = [risk]
         self.LBGI_hist = [LBGI]
         self.HBGI_hist = [HBGI]
+        self.last_magni = np.sum(self.magni_risk_hist)
         self.magni_risk_hist = [magni_risk]
         self.CHO_hist = [0]
         self.insulin_hist = [0]
+        self.last_rew = np.sum(self.rew_hist)
+        self.last_true_rew = np.sum(self.true_rew_hist)
         self.rew_hist = [0]
         self.true_rew_hist = [0]
 

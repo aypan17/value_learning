@@ -1,26 +1,18 @@
 #!/bin/bash
 # shellcheck disable=SC2206
-#SBATCH --time=72:00:00
-#SBATCH --job-name=compare
-#SBATCH --cpus-per-task=40
-# #SBATCH --mem-per-cpu=4GB
+#SBATCH --job-name=traffic
+#SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
-#SBATCH -p 'savio3'
-#SBATCH -A fc_robustml
+# #SBATCH -p 'savio3'
+# #SBATCH -A fc_robustml
 # #SBATCH -A co_stat
 
 # set -x
 
 # simulate conda activate flow
-export PATH=/global/home/users/aypan17/sumo/bin:/global/home/users/aypan17/cmake/bin:/global/home/groups/consultsw/sl-7.x86_64/modules/sq/0.1.0/bin:/global/home/users/aypan17/cmake/bin:/global/home/groups/consultsw/sl-7.x86_64/modules/sq/0.1.0/bin:/global/home/users/aypan17/ninja:/global/home/users/aypan17/cmake/bin:/global/home/groups/consultsw/sl-7.x86_64/modules/sq/0.1.0/bin:/global/home/users/aypan17/cmake/bin:/global/home/groups/consultsw/sl-7.x86_64/modules/sq/0.1.0/bin:/global/home/users/aypan17/cmake/bin:/global/home/groups/consultsw/sl-7.x86_64/modules/sq/0.1.0/bin:/global/home/groups/co_stat/software/miniconda3_aypan17/envs/flow/bin:/global/home/groups/co_stat/software/miniconda3_aypan17/condabin:/global/home/groups/consultsw/sl-7.x86_64/modules/sq/0.1.0/bin:/global/software/sl-7.x86_64/modules/tools/emacs/25.1/bin:/global/software/sl-7.x86_64/modules/tools/vim/7.4/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/global/home/groups/allhands/bin:/global/home/users/aypan17/bin:/global/home/groups/allhands/bin:/global/home/groups/allhands/bin:/global/home/groups/allhands/bin:/global/home/groups/allhands/bin:/global/home/groups/allhands/bin
-
-# Move wandb logs to scratch 
-export WANDB_DIR=/global/scratch/aypan17/ 
-
-# Neptune
-export NEPTUNE_API_TOKEN="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4MDkxNjhkMi00ZWZkLTQ0OWQtYTgzOS1iNTcxN2ZkYWZjOWYifQ=="
+export PATH=/accounts/projects/jsteinhardt/aypan/value_learning:/accounts/projects/jsteinhardt/aypan/value_learning/flow:/accounts/projects/jsteinhardt/aypan/value_learning/finrl:/accounts/projects/jsteinhardt/aypan/sumo/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/envs/flow/bin:/accounts/projects/jsteinhardt/aypan/miniconda3/condabin:/usr/local/linux/anaconda3.8/bin:/accounts/projects/jsteinhardt/aypan/bin:/usr/local/linux/bin:/usr/local/bin:/usr/bin:/usr/sbin:/snap/bin:/usr/lib/rstudio-server/bin
 
 # __doc_head_address_start__
 
@@ -52,7 +44,7 @@ echo "IP Head: $ip_head"
 
 echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
-    ray start --head --node-ip-address="$head_node_ip" --port=$port \
+    ray start --head --node-ip-address="$head_node_ip" --redis-port=$port \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --block & # --num-gpus "${SLURM_GPUS_PER_TASK}" --block &
 # __doc_head_ray_end__
 
@@ -62,36 +54,21 @@ EXP=$2
 NAME=$3
 REWARD=$4
 WEIGHT=$5
-GAMMA=$6
+WIDTH=$6
+DEPTH=$7
 
-<<<<<<< HEAD
-if [ "${EXP}" = "test" ]; then
-    python3 -u traffic_savio.py singleagent_merge_bus "test" delay,still 1,0.2 32 3 --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 3 --rollout_size 4 --horizon 300 --checkpoint 1 --test
-=======
 if [ "${CONFIG}" = "test" ]; then
-    python3 -u traffic_savio.py singleagent_bottleneck "test" vel,accel 1,20 0.999 --num_steps 2 --rollout_size 7 --horizon 300 --checkpoint 1 
->>>>>>> savio
+    python3 -u traffic_proxy.py singleagent_merge_bus "test" delay,still 1,0.2 32 3 --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 3 --rollout_size 4 --horizon 300 --checkpoint 1 --test
     exit 0 
 fi
-
 if [ "${CONFIG}" = "ss" ]; then
-<<<<<<< HEAD
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
+    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" 
+    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" 
 elif [ "${CONFIG}" = "sm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 7 --horizon 300 --multi
+    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK"  --num_steps 5000 --rollout_size 7 --horizon 300 --multi
 elif [ "${CONFIG}" = "lm" ]; then
-    python3 -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --multi 
-=======
-    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 
-elif [ "${CONFIG}" = "ls" ]; then
-    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 1000 --rollout_size 7 
-elif [ "${CONFIG}" = "sm" ]; then
-    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --num_steps 5000 --rollout_size 7 --horizon 300 --multi
-elif [ "${CONFIG}" = "lm" ]; then
-    python3 -W ignore -u traffic_savio.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${GAMMA} --rollout_size 7 --multi 
->>>>>>> savio
+    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --multi 
 else
     echo "Must select either 'ss' for short, single agent; 'ls' for long, single agent; 'sm' for short, multi agent; 'lm' for long, multi agent not ${CONFIG}"
     exit 0

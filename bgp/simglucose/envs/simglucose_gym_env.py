@@ -203,6 +203,7 @@ class DeepSACT1DEnv(gym.Env):
             self.rolling.append(action)
             if len(self.rolling) > 12:
                 self.rolling = self.rolling[1:]
+        action = 0
         act = Action(basal=0, bolus=action)
         _, reward, _, info = self.env.step(act, reward_fun=self.reward_fun, cho=cho, true_reward_fn=self.true_reward_fn)
         state = self.get_state(self.norm)
@@ -318,18 +319,31 @@ class DeepSACT1DEnv(gym.Env):
     def avg_magni_risk(self):
         return np.mean(self.env.magni_risk_hist[max(self.state_hist, 288):])
 
+    @property
+    def train_magni_risk(self):
+        return self.env.last_magni
+
     @property 
     def episode_rew(self):
-        return np.sum(self.env.rew_hist[max(self.state_hist, 288):])
+        return self.env.last_rew
 
     @property 
     def episode_true_rew(self):
-        return np.sum(self.env.true_rew_hist[max(self.state_hist, 288):])
+        return self.env.last_true_rew
 
     @property
     def glycemic_report(self):
         bg = np.array(self.env.BG_hist[max(self.state_hist, 288):])
         ins = np.array(self.env.insulin_hist[max(self.state_hist, 288):])
+        hypo = (bg < 70).sum()/len(bg)
+        hyper = (bg > 180).sum()/len(bg)
+        euglycemic = 1 - (hypo+hyper)
+        return bg, euglycemic, hypo, hyper, ins
+
+    @property
+    def train_glycemic_report(self):
+        bg = np.array(self.env.last_BG_hist[max(self.state_hist, 288):])
+        ins = np.array(self.env.last_insulin_hist[max(self.state_hist, 288):])
         hypo = (bg < 70).sum()/len(bg)
         hyper = (bg > 180).sum()/len(bg)
         euglycemic = 1 - (hypo+hyper)

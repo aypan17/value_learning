@@ -96,7 +96,7 @@ def magni_bg_insulin(bg_hist, insulin_hist, **kwargs):
     bg = max(1, bg_hist[-1])
     fBG = 3.5506*(np.log(bg)**.8353-3.7932)
     risk = 10 * (fBG)**2
-    return -1*risk - 1 * insulin_hist[-1]
+    return -1*risk - 10 * insulin_hist[-1]
 
 def magni_bg_insulin_true(bg_hist, insulin_hist, **kwargs):
     bg = max(1, bg_hist[-1])

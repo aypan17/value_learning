@@ -106,42 +106,32 @@ class BaseMatplotLibViz(PandemicViz):
 
     def plot_gis(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
-        gis = np.vstack(self._gis).squeeze()
-        gis_std = np.vstack(self._gis_std).squeeze()
-        days = np.arange(len(gis))
-        for mean, std in zip(np.hsplit(gis, 5), np.hsplit(gis_std, 5)):
-            ax.plot(days, mean)
-            ax.fill_between(days, (mean-std).squeeze(1), (mean+std).squeeze(1), alpha=0.1)
-            ax.legend(self._gis_legend, loc='upper left')
-            ax.set_ylim(-0.1, 1.01)
-            ax.set_title('Global Infection Summary')
-            ax.set_xlabel('time (days)')
-            ax.set_ylabel('proportion')
-            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        gis = np.vstack(self._gis).squeeze() * self._num_persons
+        ax.plot(gis)
+        ax.legend(self._gis_legend, loc=1)
+        ax.set_ylim(-0.1, self._num_persons + 1)
+        ax.set_title('Global Infection Summary')
+        ax.set_xlabel('time (days)')
+        ax.set_ylabel('persons')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     def plot_gts(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
-        gts = np.vstack(self._gts).squeeze()
-        gts_std = np.vstack(self._gts_std).squeeze()
-        days = np.arange(len(gts))
-        for mean, std in zip(np.hsplit(gts, 5), np.hsplit(gts_std, 5)):
-            ax.plot(days, mean)
-            ax.fill_between(days, (mean-std).squeeze(1), (mean+std).squeeze(1), alpha=0.1)
-            ax.legend(self._gis_legend, loc='upper left')
-            ax.set_ylim(-0.1, 1.01)
-            ax.set_title('Global Testing Summary')
-            ax.set_xlabel('time (days)')
-            ax.set_ylabel('proportion')
-            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        gts = np.vstack(self._gts).squeeze() * self._num_persons
+        ax.plot(gts)
+        ax.legend(self._gis_legend, loc=1)
+        ax.set_ylim(-0.1, self._num_persons + 1)
+        ax.set_title('Global Testing Summary')
+        ax.set_xlabel('time (days)')
+        ax.set_ylabel('persons')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     def plot_critical_summary(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
-        gis = np.vstack(self._gis).squeeze()
-        gis_std = np.vstack(self._gis_std).squeeze()
-        ax.plot(self._num_persons * gis[:, self._critical_index])
-        ax.fill_between(np.arange(len(gis)), self._num_persons * (gis-gis_std)[:, self._critical_index], self._num_persons * (gis+gis_std)[:, self._critical_index], alpha=0.1)
+        gis = np.vstack(self._gis).squeeze() * self._num_persons
+        ax.plot(gis[:, self._critical_index])
         ax.plot(np.arange(gis.shape[0]), np.ones(gis.shape[0]) * self._max_hospital_capacity, 'y')
-        ax.legend([InfectionSummary.CRITICAL.value, 'Max hospital capacity'], loc='upper left')
+        ax.legend([InfectionSummary.CRITICAL.value, 'Max hospital capacity'], loc=1)
         ax.set_ylim(-0.1, self._max_hospital_capacity * 3)
         ax.set_title('Critical Summary')
         ax.set_xlabel('time (days)')
@@ -150,12 +140,9 @@ class BaseMatplotLibViz(PandemicViz):
 
     def plot_stages(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
-        days = np.arange(len(self._stages))
-        stages = np.array(self._stages)
-        stages_std = np.array(self._stages_std)
-        ax.plot(days, stages)
-        ax.fill_between(days, stages - stages_std, stages + stages_std, alpha=0.1)
-        ax.set_ylim(-0.1, 5) # This assumes at most 5 stages!!
+        stages = np.concatenate(self._stages).squeeze()
+        ax.plot(stages)
+        ax.set_ylim(-0.1, kwargs.get('num_stages', np.max(self._stages)) + 1)
         ax.set_title('Stage')
         ax.set_xlabel('time (days)')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -166,7 +153,7 @@ class BaseMatplotLibViz(PandemicViz):
                     textcoords='offset points', xycoords='axes fraction',
                     ha='center', va='center', size=14)
 
-    def plot(self, epoch=None, name=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
+    def plot(self, name=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
         if plots_to_show:
             fn_names = [nm for nm in plots_to_show if ismethod(getattr(self, 'plot_' + nm))]
         else:
@@ -189,10 +176,9 @@ class BaseMatplotLibViz(PandemicViz):
             plot_fn(ax, **kwargs)
             self.annotate_plot(ax, plot_ref_labels[ax_i])
         plt.tight_layout()
-        if epoch is not None:
-            name = str(int(epoch)) + "_" + name
         plt.savefig(f"pandemic_policy/{name}")
         plt.show()
+
 
 
 class SimViz(BaseMatplotLibViz):
@@ -314,10 +300,100 @@ class GymViz(BaseMatplotLibViz):
         ax.set_title('Cumulative True Reward')
         ax.set_xlabel('time (days)')
 
+    def plot_gis(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        gis = np.vstack(self._gis).squeeze()
+        gis_std = np.vstack(self._gis_std).squeeze()
+        days = np.arange(len(gis))
+        for mean, std in zip(np.hsplit(gis, 5), np.hsplit(gis_std, 5)):
+            ax.plot(days, mean)
+            ax.fill_between(days, (mean-std).squeeze(1), (mean+std).squeeze(1), alpha=0.1)
+            ax.legend(self._gis_legend, loc='upper left')
+            ax.set_ylim(-0.1, 1.01)
+            ax.set_title('Global Infection Summary')
+            ax.set_xlabel('time (days)')
+            ax.set_ylabel('proportion')
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    def plot_gts(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        gts = np.vstack(self._gts).squeeze()
+        gts_std = np.vstack(self._gts_std).squeeze()
+        days = np.arange(len(gts))
+        for mean, std in zip(np.hsplit(gts, 5), np.hsplit(gts_std, 5)):
+            ax.plot(days, mean)
+            ax.fill_between(days, (mean-std).squeeze(1), (mean+std).squeeze(1), alpha=0.1)
+            ax.legend(self._gis_legend, loc='upper left')
+            ax.set_ylim(-0.1, 1.01)
+            ax.set_title('Global Testing Summary')
+            ax.set_xlabel('time (days)')
+            ax.set_ylabel('proportion')
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    def plot_critical_summary(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        gis = np.vstack(self._gis).squeeze()
+        gis_std = np.vstack(self._gis_std).squeeze()
+        ax.plot(self._num_persons * gis[:, self._critical_index])
+        ax.fill_between(np.arange(len(gis)), self._num_persons * (gis-gis_std)[:, self._critical_index], self._num_persons * (gis+gis_std)[:, self._critical_index], alpha=0.1)
+        ax.plot(np.arange(gis.shape[0]), np.ones(gis.shape[0]) * self._max_hospital_capacity, 'y')
+        ax.legend([InfectionSummary.CRITICAL.value, 'Max hospital capacity'], loc='upper left')
+        ax.set_ylim(-0.1, self._max_hospital_capacity * 3)
+        ax.set_title('Critical Summary')
+        ax.set_xlabel('time (days)')
+        ax.set_ylabel('persons')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    def plot_stages(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        days = np.arange(len(self._stages))
+        stages = np.array(self._stages)
+        stages_std = np.array(self._stages_std)
+        ax.plot(days, stages)
+        ax.fill_between(days, stages - stages_std, stages + stages_std, alpha=0.1)
+        ax.set_ylim(-0.1, 5) # This assumes at most 5 stages!!
+        ax.set_title('Stage')
+        ax.set_xlabel('time (days)')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    @staticmethod
+    def annotate_plot(ax: Axes, label: str) -> None:
+        ax.annotate(f'({label})', (0.5, 0.), xytext=(0, -25 - 20),
+                    textcoords='offset points', xycoords='axes fraction',
+                    ha='center', va='center', size=14)
+
+    def plot(self, epoch=None, name=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
+        if plots_to_show:
+            fn_names = [nm for nm in plots_to_show if ismethod(getattr(self, 'plot_' + nm))]
+        else:
+            fn_names = [nm.split('plot_')[-1] for nm in dir(self) if nm.startswith('plot_') is True]
+            fn_names = [nm for nm in sorted(fn_names,
+                                            key=lambda x: PlotType.plot_order().index(x)
+                                            if x in PlotType.plot_order() else np.inf)]
+
+        plot_fns = [getattr(self, 'plot_' + nm) for nm in fn_names]
+
+        """Make plots"""
+        ncols = min(4, len(plot_fns))
+        nrows = int(np.ceil(len(plot_fns) / ncols))
+
+        plt.figure(figsize=(4 * ncols, 4 * nrows))
+
+        plot_ref_labels = string.ascii_lowercase
+        for ax_i, plot_fn in enumerate(plot_fns):
+            ax = plt.subplot(nrows, ncols, ax_i + 1)
+            plot_fn(ax, **kwargs)
+            self.annotate_plot(ax, plot_ref_labels[ax_i])
+        plt.tight_layout()
+        if epoch is not None:
+            name = str(int(epoch)) + "_" + name
+        plt.savefig(f"pandemic_policy/{name}")
+        plt.show()
+
     def record(self, data: Any) -> None:
         if isinstance(data, tuple):
             obs, reward, true_rew = data
-            self._rews.append(reward)
+            self._rew.append(reward)
             self._true_rew.append(true_rew)
         else:
             obs = data

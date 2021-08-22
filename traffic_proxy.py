@@ -40,8 +40,9 @@ def on_episode_step(info):
     rew = 0
     vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
     if all(vel > -100):
-        rew += REWARD_REGISTRY['vel'](env, actions)
-        rew += 20 * REWARD_REGISTRY['accel'](env, actions)
+        rew += REWARD_REGISTRY['bus'](env, actions)
+        rew += REWARD_REGISTRY['accel'](env, actions)
+        rew += 0.1 * REWARD_REGISTRY['headway'](env, actions)
 
     # reward average velocity
     episode.user_data["true_reward"].append(rew)
@@ -144,18 +145,11 @@ def setup_exps_rllib(flow_params,
     config = deepcopy(agent_cls._default_config)
 
     config["seed"] = 17
-
-    if len(sys.argv) > 5:
-        fcnet_hiddens = [int(sys.argv[5])] * int(sys.argv[6])
-        config["num_workers"] = n_cpus - 1
-    else:
-        fcnet_hiddens = tune.grid_search([[8, 8], [32, 32], [64, 64], [128, 128], [256, 256]])
-        config["num_workers"] = (n_cpus // 5) - 1
-    
-
+    config["num_workers"] = n_cpus - 1
     config["train_batch_size"] = horizon * n_rollouts
     config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
     config["gamma"] = 0.999  # discount rate
+    fcnet_hiddens = [int(sys.argv[5])] * int(sys.argv[6])
     config["model"].update({"fcnet_hiddens": fcnet_hiddens}) 
     config["use_gae"] = True
     config["lambda"] = 0.97
@@ -224,7 +218,8 @@ def train(flags):
     policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
     policies_to_train = getattr(submodule, "policies_to_train", None)
 
-    ray.init(address=os.environ["ip_head"])
+    ray.init()
+    #ray.init(address=os.environ["ip_head"])
     
     alg_run, gym_name, config = setup_exps_rllib(
         flow_params, n_rollouts, n_cpus, reward_specification,
@@ -254,6 +249,7 @@ def train(flags):
 def main(args):
     """Perform the training operations."""
     # Parse script-level arguments (not including package arguments).
+    np.seterr(all='raise')
     flags = parse_args(args)
     if flags.test:
         wandb.init(entity="aypan17", project="test-space", sync_tensorboard=True)

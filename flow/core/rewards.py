@@ -465,14 +465,16 @@ def miles_per_gallon(env, veh_ids=None, gain=.001):
 def upweight_bus_vel(env, rl_actions):
     bus_vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids() if veh_id[:3] == 'bus'])
     other_vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids() if veh_id[:3] != 'bus'])
-    return 60 * np.mean(bus_vel) + np.mean(other_vel)
+    bus = np.mean(bus_vel) if bus_vel.size != 0 else 0 
+    other = np.mean(other_vel) if other_vel.size != 0 else 0
+    return 60 * bus + other
 
 def global_vel_all(env, rl_actions):
 	vel = np.array([
 		env.k.vehicle.get_speed(veh_id)
 		for veh_id in env.k.vehicle.get_ids()
 	])
-	return np.mean(vel)
+	return np.mean(vel) if vel.size != 0 else 0 
 
 def desired_velocity_all(env, rl_actions):
 	return desired_velocity(env)
