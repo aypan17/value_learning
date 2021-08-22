@@ -81,7 +81,6 @@ class T1DSimEnv(object):
         '''
         action is a namedtuple with keys: basal, bolus
         '''
-        print(action)
         CHO = 0.0
         insulin = 0.0
         BG = 0.0

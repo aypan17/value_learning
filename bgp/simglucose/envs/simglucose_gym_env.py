@@ -203,7 +203,6 @@ class DeepSACT1DEnv(gym.Env):
             self.rolling.append(action)
             if len(self.rolling) > 12:
                 self.rolling = self.rolling[1:]
-        action = 0
         act = Action(basal=0, bolus=action)
         _, reward, _, info = self.env.step(act, reward_fun=self.reward_fun, cho=cho, true_reward_fn=self.true_reward_fn)
         state = self.get_state(self.norm)
