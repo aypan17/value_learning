@@ -58,6 +58,7 @@ class WandbCallback(BaseCallback):
 
 		self.n_rollouts += 1
 		self.record = (self.n_rollouts % self.eval_freq == 0)
+		self.counter = 0
 
 	def _on_step(self) -> bool:
 		"""
@@ -84,12 +85,13 @@ class WandbCallback(BaseCallback):
 		self.episode_infection_data = np.concatenate([self.episode_infection_data, infection_data / len(list_obs)])
 		self.episode_threshold.append(np.sum(threshold_data) / len(list_obs))
 		
-		if self.record:
+		if self.record and self.counter < 192:
 			gis = np.array([obs.global_infection_summary[-1] for obs in list_obs]).squeeze(1)
 			gts = np.array([obs.global_testing_summary[-1] for obs in list_obs]).squeeze(1)
 			stage = np.array([obs.stage[-1].item() for obs in list_obs])
 			#self.viz.record((list_obs[0], rew[0], true_rew[0]))
 			self.viz.record_list(obs, gis, gts, stage, rew, true_rew)
+			self.counter += 1
 		return True
 
 	def _on_rollout_end(self) -> None:

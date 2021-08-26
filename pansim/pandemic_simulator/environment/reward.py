@@ -92,7 +92,7 @@ class SumReward(RewardFunction):
 
     def calculate_reward(self, prev_obs: PandemicObservation, action: int, obs: PandemicObservation) -> float:
         rewards = np.array([rf.calculate_reward(prev_obs, action, obs) for rf in self._reward_fns])
-        return float(np.sum(rewards * self._weights))
+        return float(np.sum(rewards * self._weights)), rewards
 
 
 class InfectionSummaryIncreaseReward(RewardFunction):

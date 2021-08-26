@@ -57,8 +57,8 @@ def make_model(env):
     # from torch.nn import Softsign, ReLU
     ppo_params = {'n_steps': 192, 
                  'ent_coef': 0.01, 
-                 'learning_rate': 0.0001, 
-                 'batch_size': 64,  
+                 'learning_rate': 0.0003, 
+                 'batch_size': 64,#64,  
                 'gamma': GAMMA}
 
     sac_params = {
@@ -66,7 +66,7 @@ def make_model(env):
         "buffer_size": 100000,
         "learning_rate": 0.0001,
         "learning_starts": 100,
-        "ent_coef": "auto_0.01",
+        "ent_coef": "auto_0.001",
         "gamma": GAMMA
     }
 
@@ -92,7 +92,7 @@ def init(args):
     sim_config = make_cfg()
     regulations = make_reg()
     viz = make_viz(sim_config)
-    done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=192)
+    done_fn = ps.env.DoneFunctionFactory.default(ps.env.DoneFunctionType.TIME_LIMIT, horizon=193 if cfg.four_start else 192)
 
     reward_fn = SumReward(
             reward_fns=[
@@ -117,6 +117,7 @@ def init(args):
             done_fn=done_fn,
             reward_fn=reward_fn,
             constrain=True,
+            four_start=cfg.four_start,
             obs_history_size=3,
             num_days_in_obs=8
         )
@@ -126,10 +127,13 @@ def init(args):
 def train(env, test_env, viz, args):
     model = make_model(env)
     print("Running model")
+    s = time.time()
     if args.test:
-        model.learn(total_timesteps = 320, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+        model.learn(total_timesteps = 384, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
     else:
         model.learn(total_timesteps = 3072 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+    e = time.time()
+    print(f"TIME = {e-s}")
     return model    
 
 def train_sacd(env, test_env, viz, args):
@@ -145,6 +149,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--shared', action='store_true')
+    parser.add_argument('--four_start', action='store_true')
     parser.add_argument('--sacd', action='store_true')
     parser.add_argument('--test', action='store_true')
     parser.add_argument('--cuda', action='store_true')
@@ -178,7 +183,7 @@ def main():
           project="test-space",
           group="covid",
           entity="aypan17",
-          config=config,
+          config=args.__dict__,
           sync_tensorboard=True
         )
     else:
@@ -186,7 +191,7 @@ def main():
           project="value-learning",
           group="covid",
           entity="aypan17",
-          config=config,
+          config=args.__dict__,
           sync_tensorboard=True
         )
     if args.sacd:

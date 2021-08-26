@@ -22,6 +22,8 @@ def reward_name_to_function(reward_name):
         reward_fun = reward_functions.reward_risk
     elif reward_name == 'risk_bg':
         reward_fun = reward_functions.risk_bg
+    elif reward_name == 'risk_high_bg':
+        reward_fun = reward_functions.risk_high_bg
     elif reward_name == 'magni_bg':
         reward_fun = reward_functions.magni_reward
     elif reward_name == 'cameron_bg':

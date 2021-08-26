@@ -176,6 +176,8 @@ class BaseMatplotLibViz(PandemicViz):
             plot_fn(ax, **kwargs)
             self.annotate_plot(ax, plot_ref_labels[ax_i])
         plt.tight_layout()
+        if epoch is not None:
+            name = str(int(epoch)) + "_" + epoch
         plt.savefig(f"pandemic_policy/{name}")
         plt.show()
 
@@ -387,7 +389,7 @@ class GymViz(BaseMatplotLibViz):
         plt.tight_layout()
         if epoch is not None:
             name = str(int(epoch)) + "_" + name
-        plt.savefig(f"pandemic_policy/{name}")
+        plt.savefig(f"pandemic_policy/{name+'.png'}")
         plt.show()
 
     def record(self, data: Any) -> None:

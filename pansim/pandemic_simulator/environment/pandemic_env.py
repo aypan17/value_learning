@@ -45,7 +45,8 @@ class PandemicGymEnv(gym.Env):
                  num_days_in_obs: int = 1,
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
-                 constrain: bool = False
+                 constrain: bool = False, 
+                 four_start: bool = False
                  ):
         """
         :param pandemic_sim: Pandemic simulator instance
@@ -72,7 +73,6 @@ class PandemicGymEnv(gym.Env):
         self._true_reward_fn = true_reward_fn 
         self._done_fn = done_fn
 
-
         self._obs_with_history = self.obs_to_numpy(PandemicObservation.create_empty(history_size=self._obs_history_size*self._num_days_in_obs))
         self.observation_space = spaces.Box(
             low=0, high=np.inf, shape=self._obs_with_history.shape
@@ -83,6 +83,7 @@ class PandemicGymEnv(gym.Env):
             self.action_space = gym.spaces.Discrete(3) 
         else:
             self.action_space = gym.spaces.Discrete(len(self._stage_to_regulation))
+        self.four_start = four_start
 
 
     @classmethod
@@ -157,7 +158,7 @@ class PandemicGymEnv(gym.Env):
         return np.concatenate([obs.time_day, obs.stage, obs.infection_above_threshold, obs.global_testing_summary_alpha, obs.global_testing_summary_delta], axis=2)
 
     def step(self, action: int) -> Tuple[PandemicObservation, float, bool, Dict]:
-        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+        #assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
         # execute the action if different from the current stage
         if self.constrain:
@@ -195,14 +196,14 @@ class PandemicGymEnv(gym.Env):
                                                   self._non_essential_business_loc_ids)
 
         prev_obs = self._last_observation
-        self._last_reward = self._reward_fn.calculate_reward(prev_obs, action, obs) if self._reward_fn else 0.
-        self._last_true_reward = \
+        self._last_reward, last_rew_breakdown = self._reward_fn.calculate_reward(prev_obs, action, obs) if self._reward_fn else 0.
+        self._last_true_reward, last_true_rew_breakdown = \
             self._true_reward_fn.calculate_reward(prev_obs, action, obs) if self._true_reward_fn is not None else 0.
         done = self._done_fn.calculate_done(obs, action) if self._done_fn else False
         self._last_observation = obs
         self._obs_with_history = np.concatenate([self._obs_with_history[self._obs_history_size:], self.obs_to_numpy(self._last_observation)])
         #return self._last_observation, self._last_reward, done, {}
-        return self._obs_with_history, self._last_reward, done, {}
+        return self._obs_with_history, self._last_reward, done, {"rew": last_rew_breakdown, "true_rew": last_true_rew_breakdown}
         
 
     def reset(self) -> np.ndarray:
@@ -222,7 +223,10 @@ class PandemicGymEnv(gym.Env):
             if self._non_essential_business_loc_ids is not None else None))
 
         #return self._last_observation
-        return self._obs_with_history
+        if self.four_start:
+            return self.step(4)[0]
+        else:
+            return self._obs_with_history
 
     def render(self, mode: str = 'human') -> bool:
         pass
@@ -240,6 +244,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  sim_steps_per_regulation: int = 24,
                  non_essential_business_location_ids: Optional[List[LocationID]] = None,
                  constrain: bool = False,
+                 four_start: bool = False,
                  ):
 
         super().__init__(pandemic_sim,
@@ -251,7 +256,8 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  num_days_in_obs,
                  sim_steps_per_regulation,
                  non_essential_business_location_ids,
-                 constrain
+                 constrain,
+                 four_start
                 )
         
 
@@ -269,7 +275,8 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                     beta: float = 1,
                     gamma: float = 0.1,
                     delta: float = 0.02,
-                    constrain: bool = False
+                    constrain: bool = False,
+                    four_start: bool = False
                     ) -> 'PandemicPolicyGymEnv':
         """
         Creates an instance using config
@@ -328,7 +335,8 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                               done_fn=done_fn,
                               obs_history_size=obs_history_size,
                               non_essential_business_location_ids=non_essential_business_location_ids,
-                              constrain=constrain)
+                              constrain=constrain,
+                              four_start=four_start)
 
     def get_single_env(self):
         def get_self():

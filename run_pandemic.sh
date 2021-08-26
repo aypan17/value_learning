@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:1
-#SBATCH -p 'jsteinhardt'
-#SBATCH -w smaug
+#SBATCH -p 'high' #'jsteinhardt'
+# #SBATCH -w smaug
 
 # set -x
 
@@ -17,21 +17,27 @@ mkdir -p pandemic_policy
 
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 
-NAME=$1
-ALPHA=$2
-BETA=$3
-GAMMA=$4
-DELTA=$5
-LO=$6
-HI=$7
-WIDTH=$8
-DEPTH=$9
-DISCOUNT=${10}
+CONFIG=$1
+NAME=$2
+ALPHA=$3
+BETA=$4
+GAMMA=$5
+DELTA=$6
+LO=$7
+HI=$8
+WIDTH=$9
+DEPTH=${10}
+DISCOUNT=${11}
 
-if [ "${NAME}" = "sacd" ]; then
+if [ "${CONFIG}" = "sacd" ]; then
 	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $LO $HI 0 0 $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" --sacd
-elif [ "${NAME}" = "test" ]; then
-	python3 pandemic_test.py $NAME 0 0 0 0 95 105 32 3 0.99 --n_cpus "$SLURM_CPUS_PER_TASK" --test
-else
+elif [ "${CONFIG}" = "test" ]; then
+	python3 pandemic_test.py 'test' 0 0 0 0 95 105 32 3 0.99 --n_cpus "$SLURM_CPUS_PER_TASK" --test --four_start
+elif [ "${CONFIG}" = "run" ]; then
 	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $LO $HI $WIDTH $DEPTH $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" 
+elif [ "${CONFIG}" = "four" ]; then
+	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $LO $HI $WIDTH $DEPTH $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" --four_start 
+else
+	echo "Invalid config"
+	exit 0
 fi

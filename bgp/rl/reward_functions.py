@@ -69,6 +69,9 @@ def risk_diff_bg(bg_hist, **kwargs):
 def risk_bg(bg_hist, **kwargs):
     return -risk_index([bg_hist[-1]], 1)[-1]
 
+def risk_high_bg(bg_hist, **kwargs):
+    l, h, _ = risk_index([bg_hist[-1]], 1)
+    return -1 * l - 100 * h 
 
 def reward_event(cgm_hist, **kwargs):
     if len(cgm_hist) < 1:
