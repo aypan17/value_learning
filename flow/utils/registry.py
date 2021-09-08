@@ -1,6 +1,7 @@
 """Utility method for registering environments with OpenAI gym."""
 
 import importlib
+import numpy as np
 
 import gym
 from gym.envs.registration import register
@@ -79,6 +80,7 @@ def make_create_env(params, reward_specification=None, version=0, render=None):
     while "{}-v{}".format(base_env_name, version) in env_ids:
         version += 1
     env_name = "{}-v{}".format(base_env_name, version)
+    env_name += str(np.random.randint(2**31))
 
     if isinstance(params["network"], str):
         print("""Passing of strings for network will be deprecated.

@@ -73,6 +73,10 @@ def risk_high_bg(bg_hist, **kwargs):
     l, h, _ = risk_index([bg_hist[-1]], 1)
     return -1 * l - 100 * h 
 
+def risk_low_bg(bg_hist, **kwargs):
+    l, h, _ = risk_index([bg_hist[-1]], 1)
+    return -100 * l - h 
+
 def reward_event(cgm_hist, **kwargs):
     if len(cgm_hist) < 1:
         return 0
@@ -94,6 +98,15 @@ def magni_reward(bg_hist, **kwargs):
     fBG = 3.5506*(np.log(bg)**.8353-3.7932)
     risk = 10 * (fBG)**2
     return -1*risk
+
+def magni_misweight(bg_hist, **kwargs):
+    bg = max(1, bg_hist[-1])
+    if bg < 140:
+        return -1 * min(25, -5/14 * bg + 50)
+    else:
+        fBG = 3.5506*(np.log(bg)**.8353-3.7932)
+        risk = 10 * (fBG)**2
+        return -1*risk
 
 def magni_bg_insulin(bg_hist, insulin_hist, **kwargs):
     bg = max(1, bg_hist[-1])

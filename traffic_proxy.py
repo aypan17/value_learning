@@ -218,8 +218,8 @@ def train(flags):
     policy_mapping_fn = getattr(submodule, "policy_mapping_fn", None)
     policies_to_train = getattr(submodule, "policies_to_train", None)
 
-    ray.init()
-    #ray.init(address=os.environ["ip_head"])
+    #ray.init()
+    ray.init(address=os.environ["ip_head"])
     
     alg_run, gym_name, config = setup_exps_rllib(
         flow_params, n_rollouts, n_cpus, reward_specification,
@@ -249,7 +249,7 @@ def train(flags):
 def main(args):
     """Perform the training operations."""
     # Parse script-level arguments (not including package arguments).
-    np.seterr(all='raise')
+    #np.seterr(all='raise')
     flags = parse_args(args)
     if flags.test:
         wandb.init(entity="aypan17", project="test-space", sync_tensorboard=True)

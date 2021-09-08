@@ -99,7 +99,7 @@ if not os.path.exists(full_path) and not finish:
 if transfer_run:
     num_epochs = 50
 else:
-    num_epochs = 500
+    num_epochs = 1000
 
 # Overwriting training parameters to make short runs for debugging purposes
 if debug:

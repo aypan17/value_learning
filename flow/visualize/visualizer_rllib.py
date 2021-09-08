@@ -57,7 +57,6 @@ def visualizer_rllib(args):
     print(result_dir)
     config = get_rllib_config(result_dir)
 
-    del config['_fake_gpus']
     # check if we have a multiagent environment but in a
     # backwards compatible way
     if config.get('multiagent', {}).get('policies', None):
@@ -385,5 +384,5 @@ def create_parser():
 if __name__ == '__main__':
     parser = create_parser()
     args = parser.parse_args()
-    ray.init(num_cpus=1, temp_dir="/global/scratch/aypan17/ray")
+    ray.init(num_cpus=1)
     visualizer_rllib(args)

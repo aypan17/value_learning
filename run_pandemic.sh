@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:1
-#SBATCH -p 'high' #'jsteinhardt'
-# #SBATCH -w smaug
+#SBATCH -p 'jsteinhardt'
+#SBATCH -w smaug
 
 # set -x
 
@@ -31,6 +31,9 @@ DISCOUNT=${11}
 
 if [ "${CONFIG}" = "sacd" ]; then
 	python3 pandemic_test.py $NAME $ALPHA $BETA $GAMMA $DELTA $LO $HI 0 0 $DISCOUNT --n_cpus "$SLURM_CPUS_PER_TASK" --sacd
+elif [ "${CONFIG}" = "runtime" ]; then
+	python3 runtime.py
+	exit  0
 elif [ "${CONFIG}" = "test" ]; then
 	python3 pandemic_test.py 'test' 0 0 0 0 95 105 32 3 0.99 --n_cpus "$SLURM_CPUS_PER_TASK" --test --four_start
 elif [ "${CONFIG}" = "run" ]; then

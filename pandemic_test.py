@@ -55,7 +55,7 @@ def make_model(env):
     agent = ps.model.StageModel(env = env)
 
     # from torch.nn import Softsign, ReLU
-    ppo_params = {'n_steps': 192, 
+    ppo_params = {'n_steps': 1920, 
                  'ent_coef': 0.01, 
                  'learning_rate': 0.0003, 
                  'batch_size': 64,#64,  
@@ -131,7 +131,7 @@ def train(env, test_env, viz, args):
     if args.test:
         model.learn(total_timesteps = 384, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
     else:
-        model.learn(total_timesteps = 3072 * 500, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
+        model.learn(total_timesteps = 3072 * 2000, callback = WandbCallback(name=sys.argv[1], gamma=GAMMA, viz=viz, multiprocessing=(args.n_cpus>1)))
     e = time.time()
     print(f"TIME = {e-s}")
     return model    

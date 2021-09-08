@@ -5,7 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
-# #SBATCH -p 'savio3'
+# #SBATCH -p 'jsteinhardt'
+# #SBATCH -w 'smaug'
 # #SBATCH -A fc_robustml
 # #SBATCH -A co_stat
 

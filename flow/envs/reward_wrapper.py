@@ -18,20 +18,30 @@ class ProxyRewardEnv(object):
     def __init__(self, module, name, env_params, sim_params, network, simulator, reward_specification):
         cls = getattr(importlib.import_module(module), name)
         self.env = cls(env_params, sim_params, network, simulator)
-        self.reward_specification = reward_specification   
-        assert all([r in REWARD_REGISTRY for r, _ in self.reward_specification])
+        self.reward_specification = []
+        self.noise = 0
+        for name, eta in reward_specification:
+            if name == 'action_noise':
+                assert self.noise == 0 
+                self.noise = eta
+            else:
+                assert name in REWARD_REGISTRY 
+                self.reward_specification.append((REWARD_REGISTRY[name], eta))
 
         def proxy_reward(rl_actions, **kwargs):
             vel = np.array(self.env.k.vehicle.get_speed(self.env.k.vehicle.get_ids()))
             if any(vel < -100) or kwargs["fail"]:
                 return 0
             rew = 0 
-            for name, eta in self.reward_specification:
-                rew += eta * REWARD_REGISTRY[name](self.env, rl_actions)
+            for fn, eta in self.reward_specification:
+                rew += eta * fn(self.env, rl_actions)
             return rew 
 
         setattr(self.env, "compute_reward", proxy_reward)
 
     def __getattr__(self, attr):
         return self.env.__getattribute__(attr)
+
+    def _apply_rl_actions(self, rl_actions):
+        self.env._apply_rl_actions(rl_actions + np.random.normal(scale=self.noise, size=len(rl_actions)))
 

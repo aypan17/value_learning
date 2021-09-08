@@ -24,8 +24,12 @@ def reward_name_to_function(reward_name):
         reward_fun = reward_functions.risk_bg
     elif reward_name == 'risk_high_bg':
         reward_fun = reward_functions.risk_high_bg
+    elif reward_name == 'risk_low_bg':
+        reward_fun = reward_functions.risk_low_bg
     elif reward_name == 'magni_bg':
         reward_fun = reward_functions.magni_reward
+    elif reward_name == 'magni_misweight':
+        reward_fun = reward_functions.magni_misweight
     elif reward_name == 'cameron_bg':
         reward_fun = reward_functions.cameron_reward
     elif reward_name == 'eps_risk':
