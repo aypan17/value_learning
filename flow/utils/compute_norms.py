@@ -85,6 +85,7 @@ def rollout(env, agent, args, baseline_agent=None):
     # Simulate and collect metrics
     rets = []
     true_rets = []
+    true_rets2 = []
     actions = []
     log_probs = []
     vfs = []
@@ -95,6 +96,7 @@ def rollout(env, agent, args, baseline_agent=None):
     for i in range(args.num_rollouts):
         ret = 0
         true_ret = 0
+        true_ret2 = 0
         action_moments = [] 
         log_prob = []
         base_log_prob = []
@@ -157,14 +159,17 @@ def rollout(env, agent, args, baseline_agent=None):
                 # true_ret += REWARD_REGISTRY['bus'](env, action)
                 # true_ret += REWARD_REGISTRY['accel'](env, action)
                 # true_ret += 0.1 * REWARD_REGISTRY['headway'](env, action)
-                true_ret += REWARD_REGISTRY['vel'](env, action) / 5
-                true_ret += REWARD_REGISTRY['accel'](env, action)
+                true_ret += REWARD_REGISTRY['vel'](env, action) 
+                true_ret += 5 * REWARD_REGISTRY['accel'](env, action)
+                true_ret2 += REWARD_REGISTRY['vel'](env, action)
+                true_ret2 += REWARD_REGISTRY['accel'](env, action)
 
             if done:
                 break
 
         rets.append(ret)
         true_rets.append(true_ret)
+        true_rets2.append(true_ret2)
         actions.append(action_moments)
         base_log_probs.append(base_log_prob)
         log_probs.append(log_prob)
@@ -190,7 +195,7 @@ def rollout(env, agent, args, baseline_agent=None):
         base_log_probs, base_vfs, kls, car_kls = np.mean(base_log_probs, axis=0), np.mean(base_vfs, axis=0), np.mean(kls, axis=0), np.mean(car_kls, axis=0)
     else:
         base_log_probs, base_vfs, kls, car_kls = None, None, None, None
-    return np.mean(rets), np.mean(true_rets), actions, np.mean(log_probs, axis=0), base_log_probs, np.mean(vfs, axis=0), base_vfs, kls, car_kls
+    return np.mean(rets), np.mean(true_rets), np.mean(true_rets2), actions, np.mean(log_probs, axis=0), base_log_probs, np.mean(vfs, axis=0), base_vfs, kls, car_kls
 
 def plot(args, l_1, l_2, lc, p2r, rew, e):
     color = seaborn.color_palette(palette="crest", as_cmap=True)
@@ -229,6 +234,7 @@ def compute_norms(args):
     lc = []
     rew = []
     true_rew = []
+    true_rew2 = []
     actions = []
     log_probs = []
     base_log_probs = []
@@ -350,7 +356,7 @@ def compute_norms(args):
                     break
                 agent.restore(checkpoint)
 
-                r, tr, a, logp, base_logp, vf, base_vf, kl, car_kl = rollout(env, agent, args, baseline_agent=baseline_agent)
+                r, tr, tr2, a, logp, base_logp, vf, base_vf, kl, car_kl = rollout(env, agent, args, baseline_agent=baseline_agent)
                 weights = [w for _, w in agent.get_weights()['default_policy'].items()]
                 names = [k for k, _ in agent.get_weights()['default_policy'].items()]
 
@@ -368,6 +374,7 @@ def compute_norms(args):
                     
                     rew.append(r)
                     true_rew.append(tr)
+                    true_rew2.append(tr2)
                     actions.append(a)
                     log_probs.append(logp.tolist())
                     vfs.append(vf.tolist())
@@ -398,6 +405,7 @@ def compute_norms(args):
     print(lc)
     print(rew)
     print(true_rew)
+    print(true_rew2)
     print(actions)
     print(log_probs)
     print(base_log_probs)
@@ -408,7 +416,7 @@ def compute_norms(args):
     print(e)
     #print(p2r)
     with open(f'{results}.json', 'a', encoding='utf-8') as f:
-        json.dump({'m': m, 'params':params, 'l_1': l_1, 'l_2': l_2, 'lc': lc, 'rew': rew, 'true_rew': true_rew,
+        json.dump({'m': m, 'params':params, 'l_1': l_1, 'l_2': l_2, 'lc': lc, 'rew': rew, 'true_rew': true_rew, 'true_rew2': true_rew2,
             'actions': actions, 'log_probs': log_probs, 'base_log_probs': base_log_probs, 'vfs': vfs, 'base_vfs': base_vfs, 'kls': kls, 'car_kls': car_kls, 'e': e}, f)
     f.close()
     # f = open(f"{results}.txt", "a")
