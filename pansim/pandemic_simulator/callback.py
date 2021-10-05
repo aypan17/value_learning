@@ -4,6 +4,7 @@ from pandemic_simulator.environment.interfaces import sorted_infection_summary
 import wandb
 import numpy as np
 
+
 class WandbCallback(BaseCallback):
 	"""
 	A wandb logging callback that derives from ``BaseCallback``.

@@ -108,7 +108,7 @@ class MergePOEnv(Env):
 	@property
 	def observation_space(self):
 		"""See class definition."""
-		return Box(low=-1000, high=1000, shape=(5 * self.num_rl, ), dtype=np.float32)
+		return Box(low=-np.inf, high=np.inf, shape=(5 * self.num_rl, ), dtype=np.float32)
 
 	def _apply_rl_actions(self, rl_actions):
 		"""See class definition."""

@@ -143,12 +143,13 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         self.device = device
         self.best_risk = np.inf
         self.n_cpus=n_cpus
+        self.max_proxy = -np.inf
 
     def train(self, start_epoch=0):
         self.pretrain()
         if start_epoch == 0:
             params = self.get_epoch_snapshot(-1)
-            logger.save_itr_params(-1, params)
+            #logger.save_itr_params(-1, params)
         self.training_mode(False)
         self._n_env_steps_total = start_epoch * self.num_env_steps_per_epoch
         gt.reset()
@@ -168,7 +169,7 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     def train_online(self, start_epoch=0):
-        wandb.init(project="value-learning", group="glucose", entity="aypan17")
+        wandb.init(project="test-space", group="glucose", entity="aypan17")
         #self._current_path_builder = PathBuilder()
         for epoch in gt.timed_for(
                 range(start_epoch, self.num_epochs),
@@ -252,8 +253,8 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
             self.evaluate(epoch, eval_paths=eval_paths)
-            params = self.get_epoch_snapshot(epoch)
-            logger.save_itr_params(epoch, params)
+            #params = self.get_epoch_snapshot(epoch)
+            #logger.save_itr_params(epoch, params)
             table_keys = logger.get_table_key_set()
             if self._old_table_keys is not None:
                 assert table_keys == self._old_table_keys, (
@@ -519,6 +520,11 @@ class RLAlgorithm(metaclass=abc.ABCMeta):
         statistics['EvalMagniRisk'] = np.mean(self.env.get_attr('avg_magni_risk'))
         statistics['EvalProxyReward'] = average_returns
         statistics['EvalTrueReward'] = true_returns
+
+        self.max_proxy = max(statistics['EvalProxyReward'], self.max_proxy)
+        if self.max_proxy == statistics['EvalProxyReward']:
+            params = self.get_epoch_snapshot(-1)
+            logger.save_itr_params(-1, params, best=True)
 
         gylcemic_report = self.env.get_attr('glycemic_report')
         bg = [r[0] for r in gylcemic_report]

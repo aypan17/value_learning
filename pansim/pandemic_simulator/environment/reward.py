@@ -9,7 +9,7 @@ import numpy as np
 __all__ = ['RewardFunction', 'RewardFunctionType', 'RewardFunctionFactory', 'SumReward',
            'UnlockedBusinessLocationsReward', 'InfectionSummaryIncreaseReward',
            'InfectionSummaryAboveThresholdReward', 'LowerStageReward', 'InfectionSummaryAbsoluteReward',
-           'SmoothStageChangesReward', 'ElderlyHospitalizedReward', 'AverageStageReward']
+           'SmoothStageChangesReward', 'ElderlyHospitalizedReward', 'AverageStageReward', 'PoliticalReward']
 
 from .interfaces import PandemicObservation, InfectionSummary, sorted_infection_summary
 
@@ -32,6 +32,7 @@ class RewardFunctionType(enum.Enum):
     AVERAGE_STAGE = 'average_stage'
     SMOOTH_STAGE_CHANGES = 'smooth_stage_changes'
     ELDERLY_HOSPITALIZED = 'elderly_hospitalized'
+    POLITICAL = 'political'
 
     @staticmethod
     def values() -> List[str]:
@@ -212,6 +213,26 @@ class ElderlyHospitalizedReward(RewardFunction):
                 rew -= 1
         return rew
 
+class PoliticalReward(RewardFunction):
+    # Penalize raising the stage without noticeable infections
+    def __init__(self, threshold = 0.005, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._infected_idx = sorted_infection_summary.index(InfectionSummary.INFECTED)
+        self._critical_idx = sorted_infection_summary.index(InfectionSummary.CRITICAL)
+        self._dead_idx = sorted_infection_summary.index(InfectionSummary.DEAD)
+        self._threshold = threshold
+
+    def calculate_reward(self, prev_obs: PandemicObservation, action: int, obs: PandemicObservation) -> float:
+        infection_rate = np.mean(prev_obs.global_infection_summary[-1, -1, self._infected_idx]) + \
+                         np.mean(prev_obs.global_infection_summary[-1, -1, self._critical_idx]) + \
+                         np.mean(prev_obs.global_infection_summary[-1, -1, self._dead_idx])
+
+        stage = int(obs.stage[-1][-1].item() - prev_obs.stage[-1][-1].item())
+        assert stage in [-1, 0, 1]
+        raise_stage_penalty = min(infection_rate - self._threshold, 0) / self._threshold
+        lower_stage_penalty = min(self._threshold - infection_rate, 0) / self._threshold
+        return -((stage == 1) * raise_stage_penalty ** 2)# + (stage == -1) * lower_stage_penalty ** 2)
+        
 
 _register_reward(RewardFunctionType.INFECTION_SUMMARY_INCREASE, InfectionSummaryIncreaseReward)
 _register_reward(RewardFunctionType.INFECTION_SUMMARY_ABOVE_THRESHOLD, InfectionSummaryAboveThresholdReward)
@@ -221,3 +242,4 @@ _register_reward(RewardFunctionType.LOWER_STAGE, LowerStageReward)
 _register_reward(RewardFunctionType.AVERAGE_STAGE, AverageStageReward)
 _register_reward(RewardFunctionType.SMOOTH_STAGE_CHANGES, SmoothStageChangesReward)
 _register_reward(RewardFunctionType.ELDERLY_HOSPITALIZED, ElderlyHospitalizedReward)
+_register_reward(RewardFunctionType.POLITICAL, PoliticalReward)

@@ -42,7 +42,7 @@ class DeepSACT1DEnv(gym.Env):
                  custom_meal_size=1, starting_glucose=None,
                  harrison_benedict=False, restricted_carb=False, meal_duration=1, rolling_insulin_lim=None,
                  universal=False, unrealistic=False, reward_bias=0, carb_error_std=0, carb_miss_prob=0, source_dir=None,
-                 true_reward_fn=None, use_only_during_day=False, **kwargs):
+                 true_reward_fn=None, use_only_during_day=False, noise_scale=1.0, **kwargs):
         '''
         patient_name must be 'adolescent#001' to 'adolescent#010',
         or 'adult#001' to 'adult#010', or 'child#001' to 'child#010'
@@ -138,7 +138,7 @@ class DeepSACT1DEnv(gym.Env):
         self.custom_meal_num = custom_meal_num
         self.custom_meal_size = custom_meal_size
         self.patient_name = patient_name
-        self.set_patient_dependent_values(patient_name)
+        self.set_patient_dependent_values(patient_name, noise_scale=noise_scale)
         self.env.scenario.day = 0
 
     def pid_load(self, n_days):
@@ -370,7 +370,7 @@ class DeepSACT1DEnv(gym.Env):
     def reset(self):
         return self._reset()
 
-    def set_patient_dependent_values(self, patient_name):
+    def set_patient_dependent_values(self, patient_name, noise_scale=1.0):
         self.patient_name = patient_name
         vpatient_params = pd.read_csv(self.patient_para_file)
         quest = pd.read_csv(self.control_quest)
@@ -393,7 +393,7 @@ class DeepSACT1DEnv(gym.Env):
         self.pid = pid.PID(setpoint=pid_params.setpoint,
                            kp=pid_params.kp, ki=pid_params.ki, kd=pid_params.kd)
         patient = T1DPatientNew.withName(patient_name, self.patient_para_file)
-        sensor = CGMSensor.withName('Dexcom', self.sensor_para_file, seed=self.seeds['sensor'])
+        sensor = CGMSensor.withName('Dexcom', self.sensor_para_file, seed=self.seeds['sensor'], noise_scale=noise_scale)
         if self.time_std is None:
             scenario = RandomBalancedScenario(bw=self.bw, start_time=self.start_time, seed=self.seeds['scenario'],
                                               kind=self.kind, restricted=self.restricted_carb,

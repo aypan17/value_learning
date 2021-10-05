@@ -2,6 +2,7 @@
 
 import importlib
 import numpy as np
+import time
 
 import gym
 from gym.envs.registration import register
@@ -80,6 +81,7 @@ def make_create_env(params, reward_specification=None, version=0, render=None):
     while "{}-v{}".format(base_env_name, version) in env_ids:
         version += 1
     env_name = "{}-v{}".format(base_env_name, version)
+    np.random.seed(int(time.time() * 100) % (2**31))
     env_name += str(np.random.randint(2**31))
 
     if isinstance(params["network"], str):

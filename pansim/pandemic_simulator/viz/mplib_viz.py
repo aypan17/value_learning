@@ -281,16 +281,22 @@ class GymViz(BaseMatplotLibViz):
         """
         super().__init__(num_persons=num_persons, max_hospital_capacity=max_hospital_capacity)
         self._rew = []
+        self._rew_dist = []
         self._rew_std = []
         self._true_rew = []
+        self._true_rew_dist = []
         self._true_rew_std = []
+        self._true_rew2 = []
+        self._true_rew_dist2 = []
+        self._true_rew_std2 = []
 
     def plot_cumulative_reward(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
         days = np.arange(len(self._rew))
-        ax.plot(days, np.cumsum(self._rew))
-        #ax.fill_between(days, true_rew - np.array(self._rew_std), true_rew + np.array(self._rew_std), alpha=0.1)
-        ax.set_title('Cumulative Reward')
+        rew = np.cumsum(self._rew)
+        ax.plot(days, rew)
+        ax.fill_between(days, rew - np.array(self._rew_std), rew + np.array(self._rew_std), alpha=0.1)
+        ax.set_title('Proxy - No Political Cost')
         ax.set_xlabel('time (days)')
 
     def plot_cumulative_true_reward(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
@@ -298,9 +304,37 @@ class GymViz(BaseMatplotLibViz):
         days = np.arange(len(self._true_rew))
         true_rew = np.cumsum(self._true_rew)
         ax.plot(days, true_rew)
-        #ax.fill_between(days, true_rew - np.array(self._true_rew_std), true_rew + np.array(self._true_rew_std), alpha=0.1)
-        ax.set_title('Cumulative True Reward')
+        ax.fill_between(days, true_rew - np.array(self._true_rew_std), true_rew + np.array(self._true_rew_std), alpha=0.1)
+        ax.set_title('Proxy - No Political Cost')
         ax.set_xlabel('time (days)')
+
+    def plot_cumulative_true_reward2(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        days = np.arange(len(self._true_rew2))
+        true_rew = np.cumsum(self._true_rew2)
+        ax.plot(days, true_rew)
+        ax.fill_between(days, true_rew - np.array(self._true_rew_std), true_rew + np.array(self._true_rew_std), alpha=0.1)
+        ax.set_title('Ontological - With Political Cost')
+        ax.set_xlabel('time (days)')
+
+
+    def plot_reward_hist(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        rew_dist = np.sum(self._rew_dist, axis=0)
+        ax.hist(rew_dist, facecolor='blue', alpha=0.5)
+        ax.set_title('Reward Distribution')
+        ax.set_xlabel('Reward')
+        ax.set_ylabel('Frequency')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    def plot_true_reward_hist(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
+        ax = ax or plt.gca()
+        true_rew_dist = np.sum(self._true_rew_dist, axis=0)
+        ax.hist(true_rew_dist, facecolor='blue', alpha=0.5)
+        ax.set_title('True Reward Distribution')
+        ax.set_xlabel('True Reward')
+        ax.set_ylabel('Frequency')
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     def plot_gis(self, ax: Optional[Axes] = None, **kwargs: Any) -> None:
         ax = ax or plt.gca()
@@ -364,7 +398,7 @@ class GymViz(BaseMatplotLibViz):
                     textcoords='offset points', xycoords='axes fraction',
                     ha='center', va='center', size=14)
 
-    def plot(self, epoch=None, name=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
+    def plot(self, epoch=None, name=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), evaluate=False, plots_to_show: Optional[Sequence[str]] = None, *args: Any, **kwargs: Any) -> None:
         if plots_to_show:
             fn_names = [nm for nm in plots_to_show if ismethod(getattr(self, 'plot_' + nm))]
         else:
@@ -387,10 +421,45 @@ class GymViz(BaseMatplotLibViz):
             plot_fn(ax, **kwargs)
             self.annotate_plot(ax, plot_ref_labels[ax_i])
         plt.tight_layout()
+
         if epoch is not None:
             name = str(int(epoch)) + "_" + name
-        plt.savefig(f"pandemic_policy/{name+'.png'}")
-        plt.show()
+        if evaluate:
+            plt.savefig(f"{name+'.svg'}", dpi=120, bbox_inches='tight', pad_inches = 0, format='svg')
+        else:
+            plt.savefig(f"pandemic_policy/{name+'.png'}")
+        #plt.show()
+
+    # def plot(v1, v2,epoch=None, name=datetime.now().strftime("%m-%d-%Y-%H_%M_%S"), evaluate=False, plots_to_show: Optional[Sequence[str]] = None) -> None:
+    #     if plots_to_show:
+    #         fn_names = [nm for nm in plots_to_show if ismethod(getattr(v1, 'plot_' + nm))]
+    #     else:
+    #         fn_names = [nm.split('plot_')[-1] for nm in dir(v1) if nm.startswith('plot_') is True]
+    #         fn_names = [nm for nm in sorted(fn_names,
+    #                                         key=lambda x: PlotType.plot_order().index(x)
+    #                                         if x in PlotType.plot_order() else np.inf)]
+
+    #     plot_fns = [getattr(v1, 'plot_' + nm) for nm in fn_names]
+
+    #     """Make plots"""
+    #     ncols = min(4, len(plot_fns))
+    #     nrows = int(np.ceil(len(plot_fns) / ncols))
+
+    #     plt.figure(figsize=(4 * ncols, 4 * nrows))
+
+    #     plot_ref_labels = string.ascii_lowercase
+    #     for ax_i, plot_fn in enumerate(plot_fns):
+    #         ax = plt.subplot(nrows, ncols, ax_i + 1)
+    #         plot_fn(ax, **kwargs)
+    #         self.annotate_plot(ax, plot_ref_labels[ax_i])
+    #     plt.tight_layout()
+
+    #     if epoch is not None:
+    #         name = str(int(epoch)) + "_" + name
+    #     if evaluate:
+    #         plt.savefig(f"{name+'.png'}")
+    #     else:
+    #         plt.savefig(f"pandemic_policy/{name+'.png'}")
 
     def record(self, data: Any) -> None:
         if isinstance(data, tuple):
@@ -402,7 +471,7 @@ class GymViz(BaseMatplotLibViz):
         assert isinstance(obs, PandemicObservation)
         self.record_obs(obs)
 
-    def record_list(self, obs, gis, gts, stage, rew, true_rew) -> None:
+    def record_list(self, obs, gis, gts, stage, rew, true_rew, true_rew2=None) -> None:
         if len(self._gis_legend) == 0:
             self._gis_legend = list(obs.infection_summary_labels)
             self._critical_index = self._gis_legend.index(InfectionSummary.CRITICAL.value)
@@ -414,9 +483,15 @@ class GymViz(BaseMatplotLibViz):
         self._stages.append(np.mean(stage))
         self._stages_std.append(np.std(stage))
         self._rew.append(np.mean(rew))
+        self._rew_dist.append(rew)
         self._rew_std.append(np.std(rew))
         self._true_rew.append(np.mean(true_rew))
         self._true_rew_std.append(np.std(true_rew))
+        self._true_rew_dist.append(true_rew)
+        if true_rew2 is not None:
+            self._true_rew2.append(np.mean(true_rew2))
+            self._true_rew_std2.append(np.std(true_rew2))
+            self._true_rew_dist2.append(true_rew2)
 
     def reset(self):
         self._axs = list()
@@ -431,9 +506,14 @@ class GymViz(BaseMatplotLibViz):
         self._stages_std = []
 
         self._rew = []
+        self._rew_dist = []
         self._rew_std = []
         self._true_rew = []
+        self._true_rew_dist = []
         self._true_rew_std = []
+        self._true_rew2 = []
+        self._true_rew_dist2 = []
+        self._true_rew_std2 = []
 
         self._gis_legend = []
 

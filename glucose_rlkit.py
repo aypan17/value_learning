@@ -27,10 +27,10 @@ source_path = './'  # the path to the location of the folder 'bgp' which contain
 print(base_name)
 
 # Hardware config
-debug = sys.argv[6].lower() == 'true'
+debug = sys.argv[7].lower() == 'true'
 device_list = ['cuda:0']  # list of cuda device ids or None for cpu
-device = 'cuda:0' if 'CUDA_VISIBLE_DEVICES' in os.environ else 'cpu'  # the cuda device to default to for debug runs, can also set to 'cpu'
-n_cpus = int(sys.argv[7])
+device = 'cuda:0'# if 'CUDA_VISIBLE_DEVICES' in os.environ else 'cpu'  # the cuda device to default to for debug runs, can also set to 'cpu'
+n_cpus = int(sys.argv[8])
 
 # General utility parameters
 seed_options = [1]#np.random.randint(1, 2**31)]#i for i in range(3)]
@@ -69,9 +69,9 @@ num_steps_per_epoch = 5760
 num_steps_per_eval = 2880
 snapshot_gap = 1000
 discount = 0.99
-policy_lr = 3e-4
-qf_lr = 3e-4
-vf_lr = 3e-4
+policy_lr = 2e-4
+qf_lr = 2e-4
+vf_lr = 2e-4
 rnn_size = int(sys.argv[2])
 rnn_layers = 2
 ground_truth_network_size = 256
@@ -79,6 +79,7 @@ loss_function = nn.SmoothL1Loss
 reward_fun = sys.argv[3] #'magni_bg_insulin'
 true_reward_fn = sys.argv[4] #'magni_bg'
 use_only_during_day = sys.argv[5].lower() == 'true'
+noise_scale = float(sys.argv[6])
 
 # Universal Action Space
 action_scale = 'basal'
@@ -103,9 +104,9 @@ else:
 
 # Overwriting training parameters to make short runs for debugging purposes
 if debug:
-    num_steps_per_epoch = 288
-    num_steps_per_eval = 144
-    num_epochs = 2
+    num_steps_per_epoch = 2880
+    num_steps_per_eval = 1440
+    num_epochs = 10
     num_eval_runs = 1
 
 # Running
@@ -222,7 +223,8 @@ for setting in itertools.product(*option_dict.values()):
         use_min=use_min,
         carb_error_std=0,
         carb_miss_prob=0,
-        use_only_during_day=use_only_during_day
+        use_only_during_day=use_only_during_day,
+        noise_scale=noise_scale
     )
     run_func = run_em_sac
     if finish:

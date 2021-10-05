@@ -17,6 +17,7 @@ from enum import Enum
 
 import dateutil.tz
 import numpy as np
+import torch
 
 from bgp.rlkit.core.tabulate import tabulate
 
@@ -280,7 +281,36 @@ class Logger(object):
         del self._prefixes[-1]
         self._prefix_str = ''.join(self._prefixes)
 
-    def save_itr_params(self, itr, params):
+    def save_itr_params(self, itr, params, best=False):
+        if best:            
+            policy_file_name = osp.join(self._snapshot_dir, 'policy_best.pt')
+            qf_file_name = osp.join(self._snapshot_dir, 'qf_best.pt')
+            vf_file_name = osp.join(self._snapshot_dir, 'vf_best.pt')
+            target_vf_file_name = osp.join(self._snapshot_dir, 'target_vf_best.pt')
+            state_dict_file_name = osp.join(self._snapshot_dir, 'state_dict_best.pt')
+
+            policy_cache = params['policy'].cpu()
+            qf_cache = params['qf'].cpu()
+            vf_cache = params['vf'].cpu()
+            target_vf_cache = params['target_vf'].cpu()
+
+            torch.save(policy_cache, policy_file_name)
+            torch.save(qf_cache, qf_file_name)
+            torch.save(vf_cache, vf_file_name)
+            torch.save(target_vf_cache, target_vf_file_name)
+            torch.save({'policy': policy_cache.state_dict(),
+                        'qf': qf_cache.state_dict(),
+                        'vf': vf_cache.state_dict(),
+                        'target_vf_cache': target_vf_cache.state_dict()}, state_dict_file_name)
+
+            mdl = params['eval_policy']
+            orig_run_device = mdl.stochastic_policy.device
+            params['policy'].to(orig_run_device)
+            params['qf'].to(orig_run_device)
+            params['vf'].to(orig_run_device)
+            params['target_vf'].to(orig_run_device)
+            params['alpha'].to(orig_run_device)
+
         if self._snapshot_dir:
             if self._snapshot_mode == 'all':
                 file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)

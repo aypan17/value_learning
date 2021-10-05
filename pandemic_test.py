@@ -14,9 +14,55 @@ import wandb
 
 import argparse
 
-from sacd.agent import SacdAgent, SharedSacdAgent
-
 GAMMA = float(sys.argv[10])
+
+
+def linear_schedule(initial_value: float):
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        return progress_remaining * initial_value
+
+    return func
+
+def step_schedule(initial_value: float):
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        if progress_remaining < 4/5:
+            return initial_value / 4
+        if progress_remaining < 3/5:
+            return initial_value / 16
+        if progress_remaining < 2/5:
+            return initial_value / 64
+        if progress_remaining < 1/5:
+            return initial_value / 256
+        return initial_value
+
+    return func
+
 
 def make_cfg():
     # cfg =  ps.sh.small_town_config
@@ -57,8 +103,13 @@ def make_model(env):
     # from torch.nn import Softsign, ReLU
     ppo_params = {'n_steps': 1920, 
                  'ent_coef': 0.01, 
-                 'learning_rate': 0.0003, 
-                 'batch_size': 64,#64,  
+                 'learning_rate': linear_schedule(0.0003), 
+                 'batch_size': 64,
+                 'gae_lambda': 0.95, 
+                 'n_epochs': 10,
+                 'clip_range': 0.2,
+                 'clip_range_vf': None,
+                 'target_kl': 0.02,
                 'gamma': GAMMA}
 
     sac_params = {
@@ -154,10 +205,10 @@ def main():
     parser.add_argument('--test', action='store_true')
     parser.add_argument('--cuda', action='store_true')
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--n_cpus', type=int, default=1)
+    #parser.add_argument('--n_cpus', type=int, default=16)
     parser.add_argument('--log_dir', type=str, default="pan_log")
     args = parser.parse_known_args(sys.argv[1:])[0]
-
+    args.n_cpus=16
     config = {
         'memory_size': 300000,
         'gamma': GAMMA,

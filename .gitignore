@@ -157,10 +157,12 @@ tensorboard_log/
 pandemic_policy/
 pan_log/
 glucose*/
+glucose_policy/
 .neptune/
 *.png
 *.txt
 .neptune/
+*.json
 
 # SLURM
 slurm*.out

@@ -20,10 +20,12 @@ import sys
 import time
 from copy import deepcopy
 import json
+import pandas as pd
 
 import seaborn
 import scipy
 import matplotlib.pyplot as plt
+from scipy.stats import multivariate_normal as MVN
 
 import ray
 try:
@@ -80,44 +82,98 @@ class DiagGaussian(object):
         return np.sum(
             self.log_std + .5 * np.log(2.0 * np.pi * np.e))
 
+def distributions_js(distribution_p, distribution_q, n_samples=10 ** 5):
+    # jensen shannon divergence. (Jensen shannon distance is the square root of the divergence)
+    # all the logarithms are defined as log2 (because of information entrophy)
+    X = distribution_p.rvs(n_samples)
+    p_X = distribution_p.pdf(X)
+    q_X = distribution_q.pdf(X)
+    log_mix_X = np.log2(p_X + q_X)
 
-def rollout(env, agent, args, baseline_agent=None):
+    Y = distribution_q.rvs(n_samples)
+    p_Y = distribution_p.pdf(Y)
+    q_Y = distribution_q.pdf(Y)
+    log_mix_Y = np.log2(p_Y + q_Y)
+
+    return (np.log2(p_X).mean() - (log_mix_X.mean() - np.log2(2))
+            + np.log2(q_Y).mean() - (log_mix_Y.mean() - np.log2(2))) / 2
+
+def get_dist_params(agent_logits, base_logits):
+    mean_agent, std_agent = np.split(agent_logits, 2)
+    mean_base, std_base = np.split(base_logits, 2)
+    cars = len(std_agent)
+    cov_agent = np.zeros((cars, cars), float)
+    cov_base = np.zeros((cars, cars), float)
+    np.fill_diagonal(cov_agent, np.exp(std_agent))
+    np.fill_diagonal(cov_base, np.exp(std_base))
+    return mean_agent, cov_agent, mean_base, cov_base
+
+def hellinger(agent_logits, base_logits):
+    mu1, sigma1, mu2, sigma2 = get_dist_params(agent_logits, base_logits)
+    sigma1_plus_sigma2 = sigma1 + sigma2
+    mu1_minus_mu2 = mu1 - mu2
+    E = mu1_minus_mu2.T @ np.linalg.inv(sigma1_plus_sigma2/2) @ mu1_minus_mu2
+    epsilon = -0.125*E
+    numerator = np.sqrt(np.linalg.det(sigma1 @ sigma2))
+    denominator = np.linalg.det(sigma1_plus_sigma2/2)
+    squared_hellinger = 1 - np.sqrt(numerator/denominator)*np.exp(epsilon)
+    squared_hellinger = squared_hellinger.item()
+    return np.sqrt(squared_hellinger)
+
+def jensen_shannon(agent_logits, base_logits, n_samples=10 ** 5):
+    mean_agent, cov_agent, mean_base, cov_base = get_dist_params(agent_logits, base_logits)
+    agent = MVN(mean=mean_agent, cov=cov_agent)
+    base = MVN(mean=mean_base, cov=cov_base)
+    return distributions_js(base, agent, n_samples=n_samples)
+
+
+def rollout(env, args, agent, baseline_agent, true_specification, true2_specification=None):
     # Simulate and collect metrics
     rets = []
     true_rets = []
     true_rets2 = []
-    actions = []
+    #actions = []
     log_probs = []
+    base_log_probs = []
     vfs = []
     base_vfs = []
     kls = []
     car_kls = []
+    js = []
+    car_js = []
+    h = []
+    car_h = []
 
     for i in range(args.num_rollouts):
         ret = 0
         true_ret = 0
         true_ret2 = 0
-        action_moments = [] 
+        #action_moments = [] 
         log_prob = []
         base_log_prob = []
         vf = []
         base_vf = []
         kl = []
         car_kl = []
+        js_dist = []
+        car_js_dist = []
+        h_dist = []
+        car_h_dist = []
 
         state = env.reset()
         for j in range(args.horizon):
             action = agent.compute_action(state, full_fetch=True)
-            if baseline_agent:
-                baseline_action = baseline_agent.compute_action(state, full_fetch=True)
+            baseline_action = baseline_agent.compute_action(state, full_fetch=True)
 
             vf_preds = action[2]['vf_preds']
             logp = action[2]['action_logp']
             logits = action[2]['behaviour_logits']
-            if baseline_agent:
-                base_vf_preds = baseline_action[2]['vf_preds']
-                base_logp = baseline_action[2]['action_logp']
-                base_logits = baseline_action[2]['behaviour_logits']
+            base_vf_preds = baseline_action[2]['vf_preds']
+            base_logp = baseline_action[2]['action_logp']
+            base_logits = baseline_action[2]['behaviour_logits']
+
+            action = action[0]
+
             cars = []
             car_logits = []
             car_base_logits = []
@@ -127,102 +183,76 @@ def rollout(env, agent, args, baseline_agent=None):
                     cars.append(i)
             for c in cars:
                 car_logits.append(logits[c])
-                if baseline_agent:
-                    car_base_logits.append(base_logits[c])
+                car_base_logits.append(base_logits[c])
             for c in cars:
                 car_logits.append(logits[c + len(logits)//2])
-                if baseline_agent:
-                    car_base_logits.append(base_logits[c])
+                car_base_logits.append(base_logits[c])
             car_logits = np.array(car_logits)
             car_base_logits = np.array(car_base_logits)
-            action = action[0]
-
-            if (j+1) % 10 == 0:
+            
+            if (j+1) % 20 == 0:
                 vf.append(vf_preds)
                 log_prob.append(logp)
-                action_moments.append((np.mean(action).item(), np.std(action).item()))
+                #action_moments.append((np.mean(action).item(), np.std(action).item()))
                 action_dist = DiagGaussian(logits)
-                if baseline_agent:
-                    base_log_prob.append(base_logp)
-                    base_vf.append(base_vf_preds)
-                    base_action_dist = DiagGaussian(base_logits)
-                    kl.append(action_dist.kl(base_action_dist))
-                    if len(cars) > 0:
-                        car_action_dist = DiagGaussian(car_logits)
-                        car_base_action_dist = DiagGaussian(car_base_logits)
-                        car_kl.append(car_action_dist.kl(car_base_action_dist))
+                base_log_prob.append(base_logp)
+                base_vf.append(base_vf_preds)
+                base_action_dist = DiagGaussian(base_logits)
+                kl.append(base_action_dist.kl(action_dist))
+                js_dist.append(jensen_shannon(logits, base_logits))
+                h_dist.append(hellinger(logits, base_logits))
+
+                if len(cars) > 0:
+                    car_action_dist = DiagGaussian(car_logits)
+                    car_base_action_dist = DiagGaussian(car_base_logits)
+                    car_kl.append(car_base_action_dist.kl(car_action_dist))
+                    car_js_dist.append(jensen_shannon(car_logits, car_base_logits))
+                    car_h_dist.append(hellinger(car_logits, car_base_logits))
 
             state, reward, done, _ = env.step(action)
             ret += reward
             vels = np.array([env.unwrapped.k.vehicle.get_speed(veh_id) for veh_id in env.unwrapped.k.vehicle.get_ids()])
             if all(vels > -100):
-                # true_ret += REWARD_REGISTRY['bus'](env, action)
-                # true_ret += REWARD_REGISTRY['accel'](env, action)
-                # true_ret += 0.1 * REWARD_REGISTRY['headway'](env, action)
-                true_ret += REWARD_REGISTRY['vel'](env, action) 
-                true_ret += 5 * REWARD_REGISTRY['accel'](env, action)
-                true_ret2 += REWARD_REGISTRY['vel'](env, action)
-                true_ret2 += REWARD_REGISTRY['accel'](env, action)
+                true_ret = sum([eta * REWARD_REGISTRY[rew](env, action) for rew, eta in true_specification])
+                if true2_specification:
+                    true_ret2 = sum([eta * REWARD_REGISTRY[rew](env, action) for rew, eta in true2_specification])
 
             if done:
                 break
 
+        if done and (j+1) != args.horizon:
+            continue
         rets.append(ret)
         true_rets.append(true_ret)
         true_rets2.append(true_ret2)
-        actions.append(action_moments)
+        #actions.append(action_moments)
         base_log_probs.append(base_log_prob)
         log_probs.append(log_prob)
         vfs.append(vf)
         base_vfs.append(base_vf)
         kls.append(kl)
         car_kls.append(car_kl)
-
-        # outflow = vehicles.get_outflow_rate(500)
-        # final_outflows.append(outflow)
-        # inflow = vehicles.get_inflow_rate(500)
-        # final_inflows.append(inflow)
-        # if np.all(np.array(final_inflows) > 1e-5):
-        #     throughput_efficiency = [x / y for x, y in
-        #                              zip(final_outflows, final_inflows)]
-        # else:
-        #     throughput_efficiency = [0] * len(final_inflows)
-        # mean_speed.append(np.mean(vel))
-        # std_speed.append(np.std(vel))
+        js.append(js_dist)
+        car_js.append(car_js_dist)
+        h.append(h_dist)
+        car_h.append(car_h_dist)
 
     print(f'==== Finished epoch ====')
-    if baseline_agent:
-        base_log_probs, base_vfs, kls, car_kls = np.mean(base_log_probs, axis=0), np.mean(base_vfs, axis=0), np.mean(kls, axis=0), np.mean(car_kls, axis=0)
-    else:
-        base_log_probs, base_vfs, kls, car_kls = None, None, None, None
-    return np.mean(rets), np.mean(true_rets), np.mean(true_rets2), actions, np.mean(log_probs, axis=0), base_log_probs, np.mean(vfs, axis=0), base_vfs, kls, car_kls
+    if len(rets) == 0:
+        print("ERROR")
+        return None, None, None, None, None, None, None, None, None, None, None, None, None
+    return rets, true_rets, true_rets2, \
+           np.mean(log_probs, axis=0), np.mean(base_log_probs, axis=0), \
+           np.mean(vfs, axis=0), np.mean(base_vfs, axis=0), \
+           np.mean(kls, axis=0), np.mean(car_kls, axis=0), \
+           np.mean(js, axis=0), np.mean(car_js, axis=0), \
+           np.mean(h, axis=0), np.mean(car_h, axis=0)
 
-def plot(args, l_1, l_2, lc, p2r, rew, e):
-    color = seaborn.color_palette(palette="crest", as_cmap=True)
-
-    fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1, 5, sharey=True)
-    ax1.set_title("Max L1 norm")
-    ax2.set_title("Max L2 norm")
-    ax3.set_title("Max Lipschitz Constant")
-    ax4.set_title("Min reward vs. params")
-    ax5.set_title("Last reward vs. params")
-    for i in range(len(e)):
-        if np.isnan(rew[i]) or np.isnan(lc[i]):
-            continue
-        c = color(int(e[i])/5000)
-        ax1.scatter(l_1[i], rew[i], c=[c])
-        ax2.scatter(l_2[i], rew[i], c=[c])
-        ax3.scatter(lc[i], rew[i], c=[c])
-
-    c = color(1)
-    for p, (min_r, fin_r) in p2r.items():
-        ax4.scatter(p, min_r, c='blue')
-        ax5.scatter(p, fin_r, c='blue')
-
-    name = args.results.split("/")[-1]
-    fig.suptitle(f'{name}')
-    plt.savefig(name+".png")
-    plt.show()
+def reward_specification(rewards, weights):
+    rewards = rewards.split(",")
+    weights = weights.split(",")
+    assert len(rewards) == len(weights)
+    return [(r, float(w)) for r, w in zip(rewards, weights)]
 
 def compute_norms(args):
     results = args.results if args.results[-1] != '/' \
@@ -235,38 +265,61 @@ def compute_norms(args):
     rew = []
     true_rew = []
     true_rew2 = []
-    actions = []
+    epochs = None
     log_probs = []
     base_log_probs = []
     vfs = []
     base_vfs = []
     kls = []
     car_kls = []
+    js = []
+    car_js = []
+    h = []
+    car_h = []
     e = []
     m = []
-    epochs = [str(i) for i in range(args.low, args.high+1, args.skip)]
-    print(epochs)
+    not_created = True
+
+    
+
+    proxy_specification = reward_specification(args.proxy, args.proxy_weights)
+    true_specification = reward_specification(args.true, args.true_weights)
+
+    if args.true2 and args.true2_weights:
+        true2_specification = reward_specification(args.true2, args.true2_weights)
+    else:
+        true2_specification = None
 
     for directory in os.listdir(results):
         # misspecification = float(directory.split("_")[-1])
-        # print(misspecification)
-        for d in os.listdir(results+'/'+directory):
-            result_dir = results + '/' + directory + '/' + d
-            print(result_dir)
+        misspecification = []
+        for d in os.listdir(os.path.join(results, directory)):
+            result_dir = os.path.join(results, directory, d)
+            if not os.path.isdir(result_dir):
+                continue 
             try:
                 config = get_rllib_config(result_dir)
             except:
                 print(f"Loading {result_dir} config failed")
                 continue
+            print(result_dir)
 
-            # check if we have a multiagent environment but in a
-            # backwards compatible way
-            if config.get('multiagent', {}).get('policies', None):
-                multiagent = True
-                pkl = get_rllib_pkl(result_dir)
-                config['multiagent'] = pkl['multiagent']
+            if args.skip != -1:
+                epochs = [str(i) for i in range(args.low, args.high+1, args.skip)]
+                print(f'Epochs: {epochs}')
+            # Get the proxy reward at all the epochs
             else:
-                multiagent = False
+                data = pd.read_csv(os.path.join(result_dir, 'progress.csv'))
+                proxy = data['episode_reward_mean'].to_numpy(dtype=float)[49::50]
+                steps = data['training_iteration'].to_numpy(dtype=int)[49::50]
+                max_idx = np.argmax(proxy)
+                last_idx = -1
+                print(f'Max proxy of {proxy[max_idx]} achieved at epoch {steps[max_idx]}.')
+                print(f'Last proxy of {proxy[last_idx]} achieved at epoch {steps[last_idx]}.')
+                if max_idx == -1:
+                    epochs = [str(steps[-1])]
+                else:
+                    epochs = [str(steps[max_idx]), str(steps[-1])]
 
             # Run on only one cpu for rendering purposes
             config['num_workers'] = 0
@@ -307,14 +360,9 @@ def compute_norms(args):
             dir_path = os.path.dirname(os.path.realpath(__file__))
 
             # Create and register a gym+rllib env
-            merge=[('desired_vel', 1), ('accel', 20)]
-            merge_first=[('partial_first', 1), ('headway', 0.1), ('accel', 1)]
-            bus=[('vel', 1), ('headway', 0.1), ('accel', 1)]
-            bottle=[('desired_vel', 1), ('forward', 0.1), ('lane_change_bool', 1)]
-            outflow=[('outflow', 1)]
-            create_env, env_name = make_create_env(params=flow_params, reward_specification=merge_first)
+            create_env, env_name = make_create_env(params=flow_params, reward_specification=proxy_specification)
             register_env(env_name, create_env)
-            create_env2, env_name2 = make_create_env(params=flow_params, reward_specification=merge_first)
+            create_env2, env_name2 = make_create_env(params=flow_params, reward_specification=proxy_specification)
             register_env(env_name2, create_env2)
 
             # Start the environment with the gui turned on and a path for the
@@ -332,15 +380,25 @@ def compute_norms(args):
 
             agent = agent_cls(env=env_name, config=config)
             if args.baseline:
-                baseline_agent = agent_cls(env=env_name2, config=config)
-                checkpoint = result_dir + '/checkpoint_' + epochs[0]
-                checkpoint = checkpoint + '/checkpoint-' + epochs[0]
-                baseline_agent.restore(checkpoint)
+                if not_created:
+                    try:
+                        config2 = get_rllib_config(args.baseline)
+                    except:
+                        print(f"###### Loading baseline agent config failed ######")
+                        break
+                    del config2['callbacks']
+                    baseline_agent = agent_cls(env=env_name2, config=config2)
+                    checkpoint = args.baseline + '/checkpoint_5000/checkpoint-5000' 
+                    baseline_agent.restore(checkpoint)
+                    not_created = False
+                    print("====== Using baseline agent ======")
             else:
+                assert False
+                if not not_created:
+                    assert False
                 baseline_agent = None
 
-            if hasattr(agent, "local_evaluator") and \
-                    os.environ.get("TEST_FLAG") != 'True':
+            if hasattr(agent, "local_evaluator") and os.environ.get("TEST_FLAG") != 'True':
                 env = agent.local_evaluator.env
             else:
                 env = gym.make(env_name)
@@ -349,6 +407,12 @@ def compute_norms(args):
             if not sim_params.restart_instance:
                 env.restart_simulation(sim_params=sim_params, render=sim_params.render)
 
+            weights = [w for _, w in agent.get_weights()['default_policy'].items()]
+            names = [k for k, _ in agent.get_weights()['default_policy'].items()]
+            sizes = [w.shape for w in weights[::4]]
+            p = np.sum([np.prod(s) for s in sizes]).item()
+            print(p, sizes)
+
             for epoch in epochs:
                 checkpoint = result_dir + '/checkpoint_' + epoch
                 checkpoint = checkpoint + '/checkpoint-' + epoch
@@ -356,81 +420,61 @@ def compute_norms(args):
                     break
                 agent.restore(checkpoint)
 
-                r, tr, tr2, a, logp, base_logp, vf, base_vf, kl, car_kl = rollout(env, agent, args, baseline_agent=baseline_agent)
-                weights = [w for _, w in agent.get_weights()['default_policy'].items()]
-                names = [k for k, _ in agent.get_weights()['default_policy'].items()]
+                r, tr, tr2, logp, base_logp, vf, base_vf, kl, car_kl, js_dist, car_js_dist, h_dist, car_h_dist = \
+                    rollout(env, args, agent, baseline_agent, true_specification, true2_specification=true2_specification)
 
-                try:
-                    sv = np.array([scipy.linalg.svd(w, compute_uv=False, lapack_driver='gesvd')[0] for w in weights[::4]])
-                    kernel_norm1 = [np.linalg.norm(w, ord=1) for w in weights[::4]]
-                    kernel_norm2 = [np.linalg.norm(w, ord=2) for w in weights[::4]]
-                    bias_norm1 = [np.linalg.norm(w, ord=1) for w in weights[1::4]]
-                    bias_norm2 = [np.linalg.norm(w, ord=2) for w in weights[1::4]]
-
-                    params.append(np.sum([np.prod(w.shape) for w in weights[::4]]).item())
-                    l_1.append(float(max(np.max(kernel_norm1), np.max(bias_norm1))))
-                    l_2.append(float(max(np.max(kernel_norm2), np.max(bias_norm2))))
-                    lc.append(np.prod(sv).item())
-                    
-                    rew.append(r)
-                    true_rew.append(tr)
-                    true_rew2.append(tr2)
-                    actions.append(a)
-                    log_probs.append(logp.tolist())
-                    vfs.append(vf.tolist())
-                    if args.baseline:
-                        base_log_probs.append(base_logp.tolist())
-                        base_vfs.append(vf.tolist())
-                        kls.append(kl.tolist())
-                        car_kls.append(car_kl.tolist())
-                    e.append(epoch)
-                except:
+                if r is None:
                     continue
+                
+                params.append(p)
+                rew.append(r)
+                true_rew.append(tr)
+                true_rew2.append(tr2)
+                log_probs.append(logp.tolist())
+                base_log_probs.append(base_logp.tolist())
+                vfs.append(vf.tolist())
+                base_vfs.append(vf.tolist())
+                kls.append(kl.tolist())
+                car_kls.append(car_kl.tolist())
+                js.append(js_dist.tolist())
+                car_js.append(car_js_dist.tolist())
+                h.append(h_dist.tolist())
+                car_h.append(car_h_dist.tolist())
+                e.append(epoch)
                 #m.append(misspecification)
+
+                # try:
+                #     sv = np.array([scipy.linalg.svd(w, compute_uv=False, lapack_driver='gesvd')[0] for w in weights[::4]])
+                #     kernel_norm1 = [np.linalg.norm(w, ord=1) for w in weights[::4]]
+                #     kernel_norm2 = [np.linalg.norm(w, ord=2) for w in weights[::4]]
+                #     bias_norm1 = [np.linalg.norm(w, ord=1) for w in weights[1::4]]
+                #     bias_norm2 = [np.linalg.norm(w, ord=2) for w in weights[1::4]]
+
+                #     l_1.append(float(max(np.max(kernel_norm1), np.max(bias_norm1))))
+                #     l_2.append(float(max(np.max(kernel_norm2), np.max(bias_norm2))))
+                #     lc.append(np.prod(sv).item())                    
+                #     else:
+                #         base_log_probs.append([])
+                #         base_vfs.append([])
+                #         kls.append([])
+                #         car_kls.append([])
+                    
+                # except:
+                #     continue
 
             # terminate the environment
             env.unwrapped.terminate()
 
-    # p2r = {}
-    # for p, r in zip(params, rew):
-    #     if p not in p2r:
-    #         p2r[p] = (r, r)
-    #     else:
-    #         p2r[p] = (min(p2r[p][0], r), r)
 
-    print(m)
-    print(params)
-    print(l_1)
-    print(l_2)
-    print(lc)
-    print(rew)
-    print(true_rew)
-    print(true_rew2)
-    print(actions)
-    print(log_probs)
-    print(base_log_probs)
-    print(vfs)
-    print(base_vfs)
-    print(kls)
-    print(car_kls)
-    print(e)
-    #print(p2r)
     with open(f'{results}.json', 'a', encoding='utf-8') as f:
-        json.dump({'m': m, 'params':params, 'l_1': l_1, 'l_2': l_2, 'lc': lc, 'rew': rew, 'true_rew': true_rew, 'true_rew2': true_rew2,
-            'actions': actions, 'log_probs': log_probs, 'base_log_probs': base_log_probs, 'vfs': vfs, 'base_vfs': base_vfs, 'kls': kls, 'car_kls': car_kls, 'e': e}, f)
+        json.dump({'m': m, 'e': e, 'params': params, 
+                    'rew': rew, 'true_rew': true_rew, 'true_rew2': true_rew2,
+                    'log_probs': log_probs, 'base_log_probs': base_log_probs, 
+                    'vfs': vfs, 'base_vfs': base_vfs, 
+                    'kls': kls, 'car_kls': car_kls, 
+                    'js': js, 'car_js': car_js, 
+                    'h': h, 'car_h': car_h}, f)
     f.close()
-    # f = open(f"{results}.txt", "a")
-    # f.write(str(m)+"\n")
-    # f.write(str(params)+"\n")
-    # f.write(str(l_1)+"\n")
-    # f.write(str(l_2)+"\n")
-    # f.write(str(lc)+"\n")
-    # f.write(str(rew)+"\n")
-    # f.write(str(true_rew)+"\n")
-    # f.write(str(actions)+"\n")
-    # f.write(str(e)+"\n")
-    # #f.write(str(p2r)+"\n")
-    # f.close()
 
     #plot(args, l_1, l_2, lc, p2r, rew, e)
        
@@ -446,9 +490,26 @@ def create_parser():
     # required input parameters
     parser.add_argument(
         'results', type=str, help='File with list of directory containing results')
-    #parser.add_argument('checkpoint_num', type=str, help='Checkpoint number.')
+    parser.add_argument(
+        'proxy', type=str, help='Proxy reward functions to include'
+    )
+    parser.add_argument(
+        'proxy_weights', type=str, help='Weights for proxy rewards'
+    )
+    parser.add_argument(
+        'true', type=str, help='True reward functions to include'
+    )
+    parser.add_argument(
+        'true_weights', type=str, help='Weights for true rewards'
+    )
 
-    # optional input parameters
+    # Optional inputs
+    parser.add_argument(
+        '--true2', type=str, default=None, help='True reward functions to include'
+    )
+    parser.add_argument(
+        '--true2_weights', type=str, default=None, help='Weights for proxy rewards'
+    )
     parser.add_argument(
         '--run',
         type=str,
@@ -463,20 +524,14 @@ def create_parser():
         default=4,
         help='The number of rollouts to visualize.')
     parser.add_argument(
-        '--evaluate',
-        action='store_true',
-        help='Specifies whether to use the \'evaluate\' reward '
-             'for the environment.')
-    parser.add_argument(
         '--horizon',
         default=300,
         type=int,
         help='Specifies the horizon.')
     parser.add_argument('--low', type=int, default=500, help='the epoch to start plotting from')
     parser.add_argument('--high', type=int, default=5000, help='the epoch to stop plotting from')
-    parser.add_argument('--skip', type=int, default=500, help='the epoch to stop plotting at')
-    parser.add_argument('--save_path', type=str, default="f.png", help="savepath of figure")
-    parser.add_argument('--baseline', action='store_true', default=False, help="whether or not to use a baseline model for epochs")
+    parser.add_argument('--skip', type=int, default=-1, help='the epoch to stop plotting at')
+    parser.add_argument('--baseline', type=str, default=None, help="whether or not to use a baseline model for epochs")
 
     return parser
 
@@ -484,5 +539,5 @@ def create_parser():
 if __name__ == '__main__':
     parser = create_parser()
     args = parser.parse_args()
-    ray.init(num_cpus=0)
+    ray.init(num_cpus=1, log_to_driver=False)
     compute_norms(args)

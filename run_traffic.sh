@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 #SBATCH --gres gpu:0
-# #SBATCH -p 'jsteinhardt'
-# #SBATCH -w 'smaug'
+#SBATCH -p 'jsteinhardt'
+#SBATCH -w 'balrog'
 # #SBATCH -A fc_robustml
 # #SBATCH -A co_stat
 
@@ -59,11 +59,11 @@ WIDTH=$6
 DEPTH=$7
 
 if [ "${CONFIG}" = "test" ]; then
-    python3 -u traffic_proxy.py singleagent_merge_bus "test" delay,still 1,0.2 32 3 --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 3 --rollout_size 4 --horizon 300 --checkpoint 1 --test
+    python3 -u traffic_proxy.py singleagent_merge_bus "test" delay,still 1,0.2 32 3 --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 10 --rollout_size 7 --horizon 300 --checkpoint 1 --test
     exit 0 
 fi
 if [ "${CONFIG}" = "ss" ]; then
-    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 5000 --rollout_size 7 --horizon 300 
+    python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" --num_steps 10000 --rollout_size 7 --horizon 300 
 elif [ "${CONFIG}" = "ls" ]; then
     python3 -u traffic_proxy.py ${EXP} ${NAME} ${REWARD} ${WEIGHT} ${WIDTH} ${DEPTH} --n_cpus "$SLURM_CPUS_PER_TASK" 
 elif [ "${CONFIG}" = "sm" ]; then

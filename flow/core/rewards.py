@@ -469,6 +469,25 @@ def upweight_bus_vel(env, rl_actions):
     other = np.mean(other_vel) if other_vel.size != 0 else 0
     return 60 * bus + other
 
+def upweight_bus_vel_small(env, rl_actions):
+    bus_vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids() if veh_id[:3] == 'bus'])
+    other_vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids() if veh_id[:3] != 'bus'])
+    bus = np.mean(bus_vel) if bus_vel.size != 0 else 0 
+    other = np.mean(other_vel) if other_vel.size != 0 else 0
+    return 30 * bus + other
+
+def commute_time(env, rl_actions):
+	vel = np.array(env.k.vehicle.get_speed(env.k.vehicle.get_ids()))
+
+	if any(vel < -100):
+		return -10000.
+	if len(vel) == 0:
+		return -10000.
+
+	commute = np.array([(v+0.001) ** -1 for v in vel])
+	commute = commute[commute > 0]
+	return -np.mean(commute)
+
 def global_vel_all(env, rl_actions):
 	vel = np.array([
 		env.k.vehicle.get_speed(veh_id)
@@ -480,10 +499,10 @@ def desired_velocity_all(env, rl_actions):
 	return desired_velocity(env)
 
 def local_desired_vel_first(env, rl_actions):
-	return local_desired_velocity(env, env.rl_veh[:3])
+	return local_desired_velocity(env, env.rl_veh[:2])
 
 def local_desired_vel_last(env, rl_actions):
-	return local_desired_velocity(env, env.rl_veh[-3:])
+	return local_desired_velocity(env, env.rl_veh[-2:])
 
 def local_desired_vel_all(env, rl_actions):
 	return local_desired_velocity(env, env.rl_veh)
@@ -542,6 +561,9 @@ def penalize_cars(env, rl_actions):
 REWARD_REGISTRY = {
     "bus_vel": upweight_bus_vel,
     "bus": upweight_bus_vel,
+    "bus2": upweight_bus_vel_small,
+    "commute": commute_time,
+    "time": commute_time,
     "vel": global_vel_all,
     "velocity": global_vel_all,
     "desired_vel": desired_velocity_all,

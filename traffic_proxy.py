@@ -40,9 +40,12 @@ def on_episode_step(info):
     rew = 0
     vel = np.array([env.k.vehicle.get_speed(veh_id) for veh_id in env.k.vehicle.get_ids()])
     if all(vel > -100):
-        rew += REWARD_REGISTRY['bus'](env, actions)
-        rew += REWARD_REGISTRY['accel'](env, actions)
+        rew += REWARD_REGISTRY['desired_vel'](env, actions)
+        rew += 0.1 * REWARD_REGISTRY['accel'](env, actions)
         rew += 0.1 * REWARD_REGISTRY['headway'](env, actions)
+        #rew += REWARD_REGISTRY['desired_vel'](env, actions)
+        #rew += 0.1 * REWARD_REGISTRY['forward'](env, actions)
+        #rew += REWARD_REGISTRY['lane_bool'](env, actions)
 
     # reward average velocity
     episode.user_data["true_reward"].append(rew)
@@ -147,16 +150,55 @@ def setup_exps_rllib(flow_params,
     config["seed"] = 17
     config["num_workers"] = n_cpus - 1
     config["train_batch_size"] = horizon * n_rollouts
-    config["sgd_minibatch_size"] = min(16 * 1024, config["train_batch_size"])
     config["gamma"] = 0.999  # discount rate
+    print(sys.argv)
     fcnet_hiddens = [int(sys.argv[5])] * int(sys.argv[6])
     config["model"].update({"fcnet_hiddens": fcnet_hiddens}) 
+    config["sgd_minibatch_size"] = min(16*1024, config["train_batch_size"])
     config["use_gae"] = True
     config["lambda"] = 0.97
     config["kl_target"] = 0.02
     config["vf_clip_param"] = 10000
     config["num_sgd_iter"] = 10
+    config["vf_loss_coeff"] = 0.5
     config["horizon"] = horizon
+
+    step = [
+            [0, 0.0001],
+            [1400*749, 0.0001],
+            [1400*750, 0.00005],
+            [1400*1499, 0.00005],
+            [1400*1500, 0.00001],
+            [1400*2999, 0.00001],
+            [1400*3000, 0.000005],
+            [1400*4999, 0.000005],
+            [1400*5000, 0.000001],
+        ]
+
+    rise = [[0, 0.0001]]
+    drop3 = 0.000001
+    drop2 = 0.000005
+    drop1 = 0.00001
+    lo=0.00005
+    hi=0.0005
+    cyclic = []
+    cycle_len = 1400
+    cycle_stop = 360
+    for i in range(cycle_stop):
+        cyclic.append([cycle_len*2*i, hi])
+        cyclic.append([cycle_len*(2*i+1), lo])
+    cyclic.append([2*cycle_len*cycle_stop, drop1])
+    cyclic.append([4*cycle_len*cycle_stop-1, drop1])
+    cyclic.append([4*cycle_len*cycle_stop, drop2])
+    cyclic.append([8*cycle_len*cycle_stop-1, drop2])
+    cyclic.append([8*cycle_len*cycle_stop, drop3])
+    test = [[0, 0.0001], [1400*5-1, 0.0001], [1400*5, 0.00001], [1400*10, 0.00001]]
+    space1 = [[0, 0.0001], [1400*749, 0.0001], [1400*750, 0.00001], [1400*7499, 0.00001], [1400*7500, 0.000001], [1400*5000000, 0.000001]]
+    space2 = [[0, 0.0001], [1400*1499, 0.0001], [1400*1500, 0.000001], [1400*2999, 0.000001], [1400*3000, 0.0000001], [1400*5000000, 0.0000001]]
+
+    linear = [[0, 0.000001], [1400*5000000, 0.000001]]
+
+    config["lr_schedule"] = space2
     #config["simple_optimizer"] = True
     #config["framework"] = "torch"
 

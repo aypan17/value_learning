@@ -180,6 +180,7 @@ def simulate_policy(variant, itr=None, save_q=False, cpu_only=False, gpu_remap=N
                                     rolling_insulin_lim=variant['rolling_insulin_lim'], universal=variant['universal'],
                                     reward_bias=variant['reward_bias'], carb_error_std=variant['carb_error_std'],
                                     carb_miss_prob=variant['carb_miss_prob'], source_dir=variant['source_dir'],
+                                    noise_scale=variant['noise_scale'],
                                     true_reward_fn=true_reward_fn)
     else:
         raise ValueError('No proper model type given: {}'.format(variant['model_type']))
@@ -252,6 +253,7 @@ def run_em_sac(variant):
                                 rolling_insulin_lim=variant['rolling_insulin_lim'], universal=variant['universal'],
                                 reward_bias=variant['reward_bias'], carb_error_std=variant['carb_error_std'],
                                 carb_miss_prob=variant['carb_miss_prob'], source_dir=variant['source_dir'],
+                                noise_scale=variant['noise_scale'],
                                 true_reward_fn=true_reward_fn)
     training_env = bgp_env.DeepSACT1DEnv(reward_fun=reward_fun,
                                 patient_name=variant['patient_name'],
@@ -281,6 +283,7 @@ def run_em_sac(variant):
                                 rolling_insulin_lim=variant['rolling_insulin_lim'], universal=variant['universal'],
                                 reward_bias=variant['reward_bias'], carb_error_std=variant['carb_error_std'],
                                 carb_miss_prob=variant['carb_miss_prob'], source_dir=variant['source_dir'],
+                                noise_scale=variant['noise_scale'],
                                 true_reward_fn=true_reward_fn, use_only_during_day=variant['use_only_during_day'])
 
     n_cpus = variant['algo_params']['n_cpus']

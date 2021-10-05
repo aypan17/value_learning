@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import time
+from typing import Callable
 import gym
 
 # RL models from stable-baselines
@@ -18,12 +19,30 @@ from stable_baselines3.common.noise import (
     OrnsteinUhlenbeckActionNoise,
 )
 
+def linear_schedule(initial_value: float) -> Callable[[float], float]:
+    """
+    Linear learning rate schedule.
+
+    :param initial_value: Initial learning rate.
+    :return: schedule that computes
+      current learning rate depending on remaining progress
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining:
+        :return: current learning rate
+        """
+        return progress_remaining * initial_value
+
+    return func
 
 A2C_PARAMS = {"n_steps": 5, "ent_coef": 0.01, "learning_rate": 0.0007}
 PPO_PARAMS = {
     "n_steps": 2048,
     "ent_coef": 0.01,
-    "learning_rate": 0.00025,
+    "learning_rate": linear_schedule(0.00025),
     "batch_size": 64,
 }
 DDPG_PARAMS = {"batch_size": 128, "buffer_size": 50000, "learning_rate": 0.001}
@@ -44,6 +63,7 @@ NOISE = {
     "normal": NormalActionNoise,
     "ornstein_uhlenbeck": OrnsteinUhlenbeckActionNoise,
 }
+
 
 class StageModel:
 

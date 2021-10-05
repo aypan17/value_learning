@@ -20,7 +20,6 @@ class SoftActorCritic(TorchRLAlgorithm):
             policy,
             qf,
             vf,
-
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
@@ -163,6 +162,7 @@ class SoftActorCritic(TorchRLAlgorithm):
         )
         policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
         policy_loss = policy_loss + policy_reg_loss
+
 
         """
         Update networks

@@ -1,6 +1,7 @@
 # Confidential, Copyright 2020, Sony Corporation of America, All rights reserved.
 from typing import List, Optional, Dict, Tuple, Mapping, Type, Sequence
 
+import time
 import numpy as np
 from copy import deepcopy
 
@@ -40,6 +41,7 @@ class PandemicGymEnv(gym.Env):
                  pandemic_regulations: Sequence[PandemicRegulation],
                  reward_fn: Optional[RewardFunction] = None,
                  true_reward_fn: Optional[RewardFunction] = None,
+                 true_reward_fn2: Optional[RewardFunction] = None,
                  done_fn: Optional[DoneFunction] = None,
                  obs_history_size: int = 1,
                  num_days_in_obs: int = 1,
@@ -71,6 +73,7 @@ class PandemicGymEnv(gym.Env):
 
         self._reward_fn = reward_fn
         self._true_reward_fn = true_reward_fn 
+        self._true_reward_fn2 = true_reward_fn2
         self._done_fn = done_fn
 
         self._obs_with_history = self.obs_to_numpy(PandemicObservation.create_empty(history_size=self._obs_history_size*self._num_days_in_obs))
@@ -154,6 +157,10 @@ class PandemicGymEnv(gym.Env):
     def get_true_reward(self) -> float:
         return self._last_true_reward
 
+    @property
+    def get_true_reward2(self) -> float:
+        return self._last_true_reward2
+
     def obs_to_numpy(self, obs: PandemicObservation) -> np.ndarray:
         return np.concatenate([obs.time_day, obs.stage, obs.infection_above_threshold, obs.global_testing_summary_alpha, obs.global_testing_summary_delta], axis=2)
 
@@ -179,8 +186,9 @@ class PandemicGymEnv(gym.Env):
             if self._non_essential_business_loc_ids is not None else None)
 
         hist_index = 0
+
         for i in range(self._sim_steps_per_regulation):
-            # step sim
+            # step sim            
             self._pandemic_sim.step()
 
             # store only the last self._history_size state values
@@ -199,6 +207,8 @@ class PandemicGymEnv(gym.Env):
         self._last_reward, last_rew_breakdown = self._reward_fn.calculate_reward(prev_obs, action, obs) if self._reward_fn else 0.
         self._last_true_reward, last_true_rew_breakdown = \
             self._true_reward_fn.calculate_reward(prev_obs, action, obs) if self._true_reward_fn is not None else 0.
+        self._last_true_reward2, last_true_rew2_breakdown = \
+            self._true_reward_fn2.calculate_reward(prev_obs, action, obs) if self._true_reward_fn2 is not None else 0.
         done = self._done_fn.calculate_done(obs, action) if self._done_fn else False
         self._last_observation = obs
         self._obs_with_history = np.concatenate([self._obs_with_history[self._obs_history_size:], self.obs_to_numpy(self._last_observation)])
@@ -238,6 +248,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  pandemic_regulations: Sequence[PandemicRegulation],
                  reward_fn: Optional[RewardFunction] = None,
                  true_reward_fn: Optional[RewardFunction] = None,
+                 true_reward_fn2: Optional[RewardFunction] = None,
                  done_fn: Optional[DoneFunction] = None,
                  obs_history_size: int = 1,
                  num_days_in_obs: int = 1,
@@ -251,6 +262,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                  pandemic_regulations,
                  reward_fn,
                  true_reward_fn,
+                 true_reward_fn2,
                  done_fn,
                  obs_history_size,
                  num_days_in_obs,
@@ -311,6 +323,20 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
             weights=[alpha, beta, gamma, delta]
         )
 
+        true_reward_fn2 = SumReward(
+            reward_fns=[
+                RewardFunctionFactory.default(RewardFunctionType.POLITICAL,
+                                              threshold=0.02),
+                RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABSOLUTE,
+                                              summary_type=InfectionSummary.CRITICAL),
+                RewardFunctionFactory.default(RewardFunctionType.LOWER_STAGE,
+                                              num_stages=len(pandemic_regulations)),
+                RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
+                                              num_stages=len(pandemic_regulations))
+            ],
+            weights=[10, 10, 0.1, 0.02]
+        )
+
         true_reward_fn = SumReward(
             reward_fns=[
                 RewardFunctionFactory.default(RewardFunctionType.INFECTION_SUMMARY_ABSOLUTE,
@@ -324,14 +350,22 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
                 #RewardFunctionFactory.default(RewardFunctionType.SMOOTH_STAGE_CHANGES,
                 #                              num_stages=len(pandemic_regulations))
             ],
-            weights=[.4, 1]#[.4, 1, 0.1, 0.02]
+            weights=[.4, 5]#[.4, 1, 0.1, 0.02]
         )
+        # true_reward_fn = SumReward(
+        #     reward_fns=[
+        #         RewardFunctionFactory.default(RewardFunctionType.POLITICAL,
+        #                                       threshold=0.02),
+        #     ],
+        #     weights=[10]
+        # )
 
         return PandemicPolicyGymEnv(pandemic_sim=sim,
                               pandemic_regulations=pandemic_regulations,
                               sim_steps_per_regulation=sim_opts.sim_steps_per_regulation,
                               reward_fn=reward_fn,
                               true_reward_fn=true_reward_fn,
+                              true_reward_fn2=true_reward_fn2, 
                               done_fn=done_fn,
                               obs_history_size=obs_history_size,
                               non_essential_business_location_ids=non_essential_business_location_ids,
@@ -351,7 +385,7 @@ class PandemicPolicyGymEnv(PandemicGymEnv):
     def get_multi_env(self, n=10):
         def get_self():
             s = deepcopy(self)
-            s._pandemic_sim._numpy_rng=np.random.RandomState(np.random.randint(low=0,high=2**31))
+            s._pandemic_sim._numpy_rng=np.random.RandomState(int(time.time()*10000) % (2**31))
             return s
 
         e = SubprocVecEnv([get_self for i in range(n)], start_method="fork")
